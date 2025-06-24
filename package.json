@@ -1,0 +1,26 @@
+{
+  "name": "com.parful.filesharer",
+  "version": "1.0.0",
+  "displayName": "File Sharer",
+  "description": "通过二维码共享文件",
+  "unity": "2020.1",
+  "documentationUrl": "http://upm.andcrane.com:4873/-/web/detail/com.parful.filesharer",
+  "changelogUrl": "https://example.com/changelog.html",
+  "licensesUrl": "https://example.com/licensing.html",
+  "dependencies": {},
+ "keywords": [
+    "sharer",
+    "qrcode"
+  ],
+  "author": {
+    "name": "MrBaoquan",
+    "email": "mrma617@gmail.com"
+  },
+  "samples": [
+    {
+      "displayName":"FileSharer Demo",
+      "description":"分享Texture2D文件示例",
+      "path":"Samples~/FileSharer Demo"
+    }
+  ]
+}
