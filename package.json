@@ -1,11 +1,11 @@
 {
   "name": "com.parful.filesharer",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "displayName": "File Sharer",
   "description": "通过二维码共享文件",
   "unity": "2020.1",
-  "documentationUrl": "http://upm.andcrane.com:4873/-/web/detail/com.parful.filesharer",
-  "changelogUrl": "https://example.com/changelog.html",
+  "documentationUrl": "http://readme.andcrane.com:6875/books/upm/page/d2dde",
+  "changelogUrl": "http://upm.andcrane.com:4873/-/web/detail/com.parful.filesharer",
   "licensesUrl": "https://example.com/licensing.html",
   "dependencies": {},
  "keywords": [

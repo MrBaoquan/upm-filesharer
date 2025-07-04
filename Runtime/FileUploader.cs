@@ -1,6 +1,5 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
@@ -16,15 +15,35 @@ namespace FileSharer
 
         public static async Task<Texture2D> ShareLocalFile(string url, string filePath)
         {
+            if (Path.IsPathRooted(filePath) == false)
+            {
+                filePath = Path.Combine(Application.streamingAssetsPath, filePath);
+            }
+            if (File.Exists(filePath) == false)
+            {
+                Debug.LogError("File does not exist: " + filePath);
+                return null;
+            }
             byte[] fileBytes = System.IO.File.ReadAllBytes(filePath);
             return await shareFile(url, fileBytes, System.IO.Path.GetFileName(filePath));
         }
 
         public static async Task<Texture2D> ShareTexture2D(string url, Texture2D texture)
         {
-            // 将Texture2D转换为字节数组
+            if (texture == null)
+            {
+                Debug.LogError("Texture2D is null, cannot share.");
+                return null;
+            }
+
+            var _fileName = texture.name;
+            if (string.IsNullOrEmpty(_fileName))
+            {
+                _fileName = "shared_texture";
+            }
+
             byte[] textureBytes = texture.EncodeToPNG();
-            return await shareFile(url, textureBytes, texture.name + ".png");
+            return await shareFile(url, textureBytes, _fileName + ".png");
         }
 
         private static async Task<Texture2D> shareFile(
