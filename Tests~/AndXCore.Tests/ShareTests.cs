@@ -4,18 +4,21 @@ using System.Linq;
 using System.Threading.Tasks;
 using AndX;
 using AndX.Core;
-using AndX.Share;
 using Xunit;
 
 namespace AndX.Tests
 {
-    public class ShareCapabilityTests
+    public class ShareTests
     {
-        /// <summary>阈值设为 8 字节，便于用小样本覆盖分流与分片。</summary>
-        private static AndXHub Hub(FakeTransport transport)
+        public ShareTests()
         {
-            var options = new AndXOptions { Endpoint = "https://edge.example.com", EdgeKey = "edge-key", ChunkSize = 8 };
-            return AndXHub.Create(options, transport).Use<ShareCapability>();
+            Config.Reset();
+        }
+
+        /// <summary>阈值设为 8 字节，便于用小样本覆盖分流与分片。</summary>
+        private static void Configure(FakeTransport transport)
+        {
+            Config.Init(new AndXOptions { Endpoint = "https://edge.example.com", EdgeKey = "edge-key", ChunkSize = 8 }, transport);
         }
 
         private static FakeTransport Router(long chunkSize, long received, long total, List<string> putUrls, bool rejectOneShot = false)
@@ -54,8 +57,9 @@ namespace AndX.Tests
         {
             var putUrls = new List<string>();
             var transport = Router(8, 0, 8, putUrls);
+            Configure(transport);
 
-            var result = await Hub(transport).Share().UploadAsync(
+            var result = await Share.UploadAsync(
                 new TestPayload(new byte[8]), new UploadOptions { ExhibitId = "1024", Title = "截图" });
 
             Assert.Equal("tok", result.Token);
@@ -68,6 +72,7 @@ namespace AndX.Tests
             Assert.StartsWith("https://edge.example.com/api/edge/resources?", request.Url);
             Assert.Contains("exhibitId=1024", request.Url);
             Assert.Contains("mediaType=image", request.Url);
+            Assert.DoesNotContain("amount", request.Url); // 定价不由端侧决定
             Assert.True(request.HasEdgeKey);
             Assert.Equal("application/octet-stream", request.ContentType);
         }
@@ -77,8 +82,9 @@ namespace AndX.Tests
         {
             var putUrls = new List<string>();
             var transport = Router(8, 0, 20, putUrls);
+            Configure(transport);
 
-            var result = await Hub(transport).Share().UploadAsync(
+            var result = await Share.UploadAsync(
                 new TestPayload(new byte[20]), new UploadOptions { ExhibitId = "1024" });
 
             Assert.Equal("tok", result.Token);
@@ -92,9 +98,9 @@ namespace AndX.Tests
             var putUrls = new List<string>();
             // received=10 → 丢弃半片，从 offset=8 续传
             var transport = Router(8, 10, 20, putUrls);
+            Configure(transport);
 
-            await Hub(transport).Share().UploadAsync(
-                new TestPayload(new byte[20]), new UploadOptions { ExhibitId = "1024" });
+            await Share.UploadAsync(new TestPayload(new byte[20]), new UploadOptions { ExhibitId = "1024" });
 
             Assert.Equal(new[] { 8L, 16L }, putUrls.Select(OffsetOf).ToArray());
         }
@@ -104,9 +110,9 @@ namespace AndX.Tests
         {
             var putUrls = new List<string>();
             var transport = Router(8, 0, 16, putUrls);
+            Configure(transport);
 
-            await Hub(transport).Share().UploadAsync(
-                new TestPayload(new byte[16]), new UploadOptions { ExhibitId = "1024" });
+            await Share.UploadAsync(new TestPayload(new byte[16]), new UploadOptions { ExhibitId = "1024" });
 
             Assert.All(transport.Requests, r => Assert.True(r.HasEdgeKey));
             var puts = transport.Requests.Where(r => r.Method == "PUT").ToList();
@@ -119,9 +125,9 @@ namespace AndX.Tests
         {
             var putUrls = new List<string>();
             var transport = Router(8, 0, 8, putUrls, rejectOneShot: true);
+            Configure(transport);
 
-            var result = await Hub(transport).Share().UploadAsync(
-                new TestPayload(new byte[8]), new UploadOptions { ExhibitId = "1024" });
+            var result = await Share.UploadAsync(new TestPayload(new byte[8]), new UploadOptions { ExhibitId = "1024" });
 
             Assert.Equal("tok", result.Token);
             Assert.Equal(new[] { 0L }, putUrls.Select(OffsetOf).ToArray());
@@ -130,9 +136,17 @@ namespace AndX.Tests
         [Fact]
         public async Task Upload_requires_exhibit_id()
         {
-            var transport = new FakeTransport((req, i) => FakeResponse.Ok("{}"));
+            Configure(new FakeTransport((req, i) => FakeResponse.Ok("{}")));
             var ex = await Assert.ThrowsAsync<AndXException>(
-                () => Hub(transport).Share().UploadAsync(new TestPayload(new byte[4]), new UploadOptions()));
+                () => Share.UploadAsync(new TestPayload(new byte[4]), new UploadOptions()));
+            Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
+        }
+
+        [Fact]
+        public async Task Upload_before_init_throws_configuration()
+        {
+            var ex = await Assert.ThrowsAsync<AndXException>(
+                () => Share.UploadAsync(new TestPayload(new byte[4]), new UploadOptions { ExhibitId = "1" }));
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
         }
 
@@ -140,7 +154,10 @@ namespace AndX.Tests
         public async Task Abort_issues_delete()
         {
             var transport = new FakeTransport((req, i) => FakeResponse.Ok("{\"aborted\":true}"));
-            await Hub(transport).Share().AbortAsync("u_9");
+            Configure(transport);
+
+            await Share.AbortAsync("u_9");
+
             Assert.Equal("DELETE", transport.Requests.Single().Method);
             Assert.EndsWith("/api/edge/uploads/u_9", transport.Requests.Single().Url);
         }
@@ -152,10 +169,10 @@ namespace AndX.Tests
                 req.Url.Contains("/download")
                     ? FakeResponse.Ok("{\"url\":\"https://minio/x\",\"expiresIn\":600,\"type\":\"image\",\"title\":\"t\"}")
                     : FakeResponse.Ok("{\"purpose\":\"RESOURCE_DOWNLOAD\",\"token\":\"tok\",\"entitled\":true}"));
+            Configure(transport);
 
-            var share = Hub(transport).Share();
-            var scan = await share.ResolveAsync("tok");
-            var download = await share.GetDownloadAsync("tok");
+            var scan = await Share.ResolveAsync("tok");
+            var download = await Share.GetDownloadAsync("tok");
 
             Assert.True(scan.Entitled);
             Assert.Equal("https://minio/x", download.Url);
