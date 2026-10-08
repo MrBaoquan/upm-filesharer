@@ -3,11 +3,13 @@
   "version": "1.0.1",
   "displayName": "AndX",
   "description": "展项能力平台：通过二维码共享资源（图片/视频）与扫码付费",
-  "unity": "2020.1",
+  "unity": "2020.3",
   "documentationUrl": "http://readme.andcrane.com:6875/books/upm/page/d2dde",
   "changelogUrl": "http://upm.andcrane.com:4873/-/web/detail/com.parful.andx",
   "licensesUrl": "https://example.com/licensing.html",
-  "dependencies": {},
+  "dependencies": {
+    "com.unity.nuget.newtonsoft-json": "3.2.1"
+  },
  "keywords": [
     "andx",
     "sharer",
@@ -21,7 +23,7 @@
   "samples": [
     {
       "displayName":"AndX Demo",
-      "description":"分享 Texture2D 资源示例",
+      "description":"上传 Texture2D 并显示二维码示例",
       "path":"Samples~/AndX Demo"
     }
   ]
