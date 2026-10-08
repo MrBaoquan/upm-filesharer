@@ -66,6 +66,7 @@ namespace AndX.Core
         /// <summary>请求头。</summary>
         public static class Headers
         {
+            public const string Authorization = "Authorization";
             public const string EdgeKey = "x-edge-key";
             public const string DeviceId = "x-device-id";
             public const string DeviceTimestamp = "x-device-timestamp";

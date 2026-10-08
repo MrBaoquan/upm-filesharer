@@ -143,6 +143,17 @@ namespace AndX.Tests
         }
 
         [Fact]
+        public async Task Upload_rejects_empty_payload_without_network()
+        {
+            var transport = new FakeTransport((req, i) => FakeResponse.Ok("{}"));
+            Configure(transport);
+            var ex = await Assert.ThrowsAsync<AndXException>(
+                () => Share.UploadAsync(new TestPayload(Array.Empty<byte>()), new UploadOptions { ExhibitId = "1" }));
+            Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
+            Assert.Empty(transport.Requests);
+        }
+
+        [Fact]
         public async Task Upload_before_init_throws_configuration()
         {
             var ex = await Assert.ThrowsAsync<AndXException>(

@@ -28,6 +28,7 @@ AndX.Config.Init(new AndXOptions
     EdgeKey    = EdgeKey.FromEnvironment(),   // 仅 /api/edge/* 需要
     Timeout    = TimeSpan.FromSeconds(30),
     MaxRetries = 2,
+    // AccessToken = jwt,                     // 需登录接口（如下载授权）自动带 Authorization: Bearer
 });
 
 // 2) 上传素材并拿到二维码
@@ -68,13 +69,13 @@ if (scan.Entitled)
 }
 ```
 > 未购买时 `ResolveAsync` 只返回预览，**不会**返回全量下载地址。
+> `GetDownloadAsync` 需登录：配置 `AndXOptions.AccessToken`（或 `AccessTokenProvider`，便于刷新）后，SDK 自动注入 `Authorization: Bearer`。`ResolveAsync` 为可选登录，带令牌时会额外返回 `entitled`。
 
 ### 签发票据 / 扫码付费
 
 ```csharp
-// 边缘侧签发资源下载票据
-IssuedTicket ticket = await AndX.Share.IssueTicketAsync(
-    AndXContract.Purposes.ResourceDownload, exhibitId: "1024");
+// 边缘侧签发资源下载票据（mediaId）
+IssuedTicket ticket = await AndX.Share.IssueResourceTicketAsync(mediaId: "88123");
 
 // 展项付费票据 + 轮询订单
 PayTicket pay = await AndX.Pay.CreateTicketAsync(new PayTicketOptions { ExhibitId = "1024" });
@@ -114,7 +115,7 @@ catch (AndXException e)
 | 入口 | 方法 |
 |------|------|
 | `AndX.Config` | `Init(AndXOptions)` / `Init(AndXOptions, IAndXTransport)` / `Reset()` / `IsConfigured` |
-| `AndX.Share` | `UploadAsync` / `IssueTicketAsync` / `ResolveAsync` / `GetDownloadAsync` / `AbortAsync` / `QrImageUrl` / `GetQrPngAsync` |
+| `AndX.Share` | `UploadAsync` / `IssueResourceTicketAsync` / `ResolveAsync` / `GetDownloadAsync` / `AbortAsync` / `QrImageUrl` / `GetQrPngAsync` |
 | `AndX.Pay` | `CreateTicketAsync` / `QueryOrderAsync` / `QrImageUrl` / `GetQrPngAsync` |
 | `AndX.Unity` | `TexturePayload` / `FilePathPayload` / `ByteArrayPayload` / `LoadQrTextureAsync()` |
 

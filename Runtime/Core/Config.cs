@@ -68,7 +68,7 @@ namespace AndX
                     AndXContract.SdkErrorCodes.Configuration,
                     "未注册传输实现：Unity 侧请确保 AndX.Unity 已初始化，或显式传入 IAndXTransport");
             }
-            _api = new AndXApiClient(resolved, options.Endpoint, options.EdgeKey, options.Timeout, options.MaxRetries);
+            _api = new AndXApiClient(resolved, options.Endpoint, options.EdgeKey, options.Timeout, options.MaxRetries, BuildTokenProvider(options));
             _chunkSize = options.ChunkSize > 0 ? options.ChunkSize : 8L * 1024 * 1024;
         }
 
@@ -77,6 +77,16 @@ namespace AndX
         {
             _api = null;
             _chunkSize = 8L * 1024 * 1024;
+        }
+
+        private static Func<string> BuildTokenProvider(AndXOptions options)
+        {
+            if (options.AccessTokenProvider != null)
+            {
+                return options.AccessTokenProvider;
+            }
+            var token = options.AccessToken;
+            return () => token;
         }
 
         private static IAndXTransport ResolveDefaultTransport()

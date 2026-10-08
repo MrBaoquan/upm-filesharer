@@ -13,17 +13,17 @@ namespace AndX
     /// </summary>
     public static class Share
     {
-        /// <summary>签发票据（Edge 控制面，X-Edge-Key）。</summary>
-        public static async Task<IssuedTicket> IssueTicketAsync(string purpose, string exhibitId = null, string mediaId = null, CancellationToken cancellationToken = default)
+        /// <summary>签发资源下载票据（Edge 控制面，X-Edge-Key）；返回票据与二维码。</summary>
+        public static async Task<IssuedTicket> IssueResourceTicketAsync(string mediaId, CancellationToken cancellationToken = default)
         {
-            if (string.IsNullOrEmpty(purpose))
+            if (string.IsNullOrEmpty(mediaId))
             {
-                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "purpose 不能为空");
+                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "mediaId 不能为空");
             }
             var api = Config.Api;
             var data = await api.PostRawAsync(
                 AndXContract.Paths.EdgeTickets,
-                new IssueTicketRequest { Purpose = purpose, ExhibitId = exhibitId, MediaId = mediaId },
+                new IssueTicketRequest { Purpose = AndXContract.Purposes.ResourceDownload, MediaId = mediaId },
                 cancellationToken).ConfigureAwait(false);
             var r = data.ToObject<IssueTicketResponse>(AndXJson.Serializer);
             return new IssuedTicket
@@ -56,9 +56,9 @@ namespace AndX
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "UploadOptions.ExhibitId 不能为空");
             }
             var total = payload.Length;
-            if (total < 0)
+            if (total <= 0)
             {
-                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "payload.Length 必须已知且非负");
+                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "payload.Length 必须大于 0（不支持空文件）");
             }
 
             var api = Config.Api;

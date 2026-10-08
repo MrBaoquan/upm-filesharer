@@ -15,14 +15,16 @@ namespace AndX.Core
         private readonly IAndXTransport _transport;
         private readonly string _baseUrl;
         private readonly string _edgeKey;
+        private readonly Func<string> _accessToken;
         private readonly TimeSpan _timeout;
         private readonly int _maxRetries;
 
-        public AndXApiClient(IAndXTransport transport, string baseUrl, string edgeKey, TimeSpan timeout, int maxRetries)
+        public AndXApiClient(IAndXTransport transport, string baseUrl, string edgeKey, TimeSpan timeout, int maxRetries, Func<string> accessToken = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _baseUrl = (baseUrl ?? string.Empty).TrimEnd('/');
             _edgeKey = edgeKey;
+            _accessToken = accessToken;
             _timeout = timeout <= TimeSpan.Zero ? TimeSpan.FromSeconds(30) : timeout;
             _maxRetries = maxRetries < 0 ? 0 : maxRetries;
         }
@@ -73,7 +75,7 @@ namespace AndX.Core
                 UploadProgress = progress,
                 Timeout = _timeout,
             };
-            ApplyEdgeKey(request);
+            ApplyHeaders(request);
             return SendEnvelopeAsync(request, cancellationToken);
         }
 
@@ -89,7 +91,7 @@ namespace AndX.Core
                 UploadProgress = progress,
                 Timeout = _timeout,
             };
-            ApplyEdgeKey(request);
+            ApplyHeaders(request);
             return SendEnvelopeAsync(request, cancellationToken);
         }
 
@@ -126,18 +128,24 @@ namespace AndX.Core
                 request.ContentType = "application/json";
                 request.Body = Encoding.UTF8.GetBytes(AndXJson.Serialize(jsonBody));
             }
-            ApplyEdgeKey(request);
+            ApplyHeaders(request);
             return request;
         }
 
-        /// <summary>边缘密钥仅注入 /api/edge/* 请求（公开接口不带密钥）。</summary>
-        private void ApplyEdgeKey(TransportRequest request)
+        /// <summary>统一注入请求头：边缘密钥（仅 /api/edge/*）与登录令牌（若有）。</summary>
+        private void ApplyHeaders(TransportRequest request)
         {
             if (!string.IsNullOrEmpty(_edgeKey)
                 && request.Url != null
                 && request.Url.IndexOf("/api/edge/", StringComparison.Ordinal) >= 0)
             {
                 request.Headers[AndXContract.Headers.EdgeKey] = _edgeKey;
+            }
+
+            var token = _accessToken?.Invoke();
+            if (!string.IsNullOrEmpty(token))
+            {
+                request.Headers[AndXContract.Headers.Authorization] = "Bearer " + token;
             }
         }
 
