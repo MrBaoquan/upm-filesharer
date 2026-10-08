@@ -1,5 +1,5 @@
-## File Sharer
-将本地文件通过二维码的形式进行分享，用户可以进行扫码预览及下载操作
+## AndX
+AndX 展项能力平台 Unity 包。将本地文件（图片/视频）通过二维码的形式进行分享，用户扫码可预览、下载，并按配置支持扫码付费。
 ```csharp
   // 分享Texture2D 资源
     var _tex = await FileUploader.ShareTexture2D(httpServer, targetTex);
@@ -11,4 +11,4 @@
 ```
 
 ### v1.0
-- 对接File Sharer服务
+- 对接 AndX 服务

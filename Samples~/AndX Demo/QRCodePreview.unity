@@ -411,7 +411,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls:
       - m_Target: {fileID: 482057369}
-        m_TargetAssemblyTypeName: FileSharerExample, Assembly-CSharp
+        m_TargetAssemblyTypeName: AndXExample, Assembly-CSharp
         m_MethodName: ShareFile
         m_Mode: 1
         m_Arguments:

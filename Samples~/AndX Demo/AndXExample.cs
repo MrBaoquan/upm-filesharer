@@ -4,10 +4,10 @@ using System.IO;
 using UnityEngine;
 using UniRx;
 using System.Threading.Tasks;
-using FileSharer;
+using AndX;
 using UnityEngine.UI;
 
-public class FileSharerExample : MonoBehaviour
+public class AndXExample : MonoBehaviour
 {
     [Tooltip("用于显示二维码的RawImage")]
     public RawImage DisplayQRCode;
