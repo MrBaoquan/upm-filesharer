@@ -27,7 +27,6 @@ namespace AndX.Core
         public string FileName { get; set; }
         public long SizeBytes { get; set; }
         public string Title { get; set; }
-        public long Amount { get; set; }
     }
 
     internal sealed class CreateUploadResponse

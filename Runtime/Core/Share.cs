@@ -1,35 +1,27 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using AndX.Core;
 
-namespace AndX.Share
+namespace AndX
 {
     /// <summary>
-    /// 资源分享能力域：签发票据、上传（分片流式续传经 Edge）、扫码解析、下载授权、二维码地址。
-    /// 上传对调用方透明：当前统一走 Edge 分片控制面（小文件为单片），后续增量接入一次性透传与直传。
+    /// 资源分享能力（静态入口）：上传素材、签发票据、扫码解析、下载授权、二维码。
+    /// 上传对调用方透明：小文件一次性透传，大文件分片流式续传（均由 SDK 自动分流）。
+    /// 定价不由端侧决定，由服务端/后台配置。
     /// </summary>
-    public sealed class ShareCapability : IAndXCapability
+    public static class Share
     {
-        private readonly AndXApiClient _api;
-        private readonly long _chunkSize;
-
-        internal ShareCapability(AndXApiClient api, long chunkSize)
-        {
-            _api = api;
-            _chunkSize = chunkSize > 0 ? chunkSize : 8L * 1024 * 1024;
-        }
-
         /// <summary>签发票据（Edge 控制面，X-Edge-Key）。</summary>
-        public async Task<IssuedTicket> IssueTicketAsync(string purpose, string exhibitId = null, string mediaId = null, CancellationToken cancellationToken = default)
+        public static async Task<IssuedTicket> IssueTicketAsync(string purpose, string exhibitId = null, string mediaId = null, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(purpose))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "purpose 不能为空");
             }
-            var data = await _api.PostRawAsync(
+            var api = Config.Api;
+            var data = await api.PostRawAsync(
                 AndXContract.Paths.EdgeTickets,
                 new IssueTicketRequest { Purpose = purpose, ExhibitId = exhibitId, MediaId = mediaId },
                 cancellationToken).ConfigureAwait(false);
@@ -41,14 +33,14 @@ namespace AndX.Share
                 ShareUrl = r.ShareUrl,
                 Amount = r.Amount,
                 ExpireAt = r.ExpireAt,
-                QrImageUrl = string.IsNullOrEmpty(r.QrcodePath) ? null : _api.ResolveUrl(r.QrcodePath),
+                QrImageUrl = string.IsNullOrEmpty(r.QrcodePath) ? null : api.ResolveUrl(r.QrcodePath),
             };
         }
 
         /// <summary>
-        /// 上传素材：登记分片会话 → 续传对齐 → 逐片流式透传 → 完成并签发票据。
+        /// 上传素材：小文件一次性透传、大文件分片流式续传与续传对齐，完成即签发票据。
         /// </summary>
-        public async Task<ShareResult> UploadAsync(
+        public static async Task<ShareResult> UploadAsync(
             IAndXPayload payload,
             UploadOptions options,
             IProgress<UploadProgress> progress = null,
@@ -69,14 +61,16 @@ namespace AndX.Share
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "payload.Length 必须已知且非负");
             }
 
+            var api = Config.Api;
+            var chunkSize = Config.ChunkSize;
             var mediaType = options.MediaType ?? payload.MediaType;
 
             // 小文件走 Edge 一次性透传（少两次往返）；服务端上限更小时回退分片
-            if (total <= _chunkSize)
+            if (total <= chunkSize)
             {
                 try
                 {
-                    return await UploadOneShotAsync(payload, options, mediaType, total, progress, cancellationToken)
+                    return await UploadOneShotAsync(api, payload, options, mediaType, total, progress, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 catch (AndXException ex) when (ex.HttpStatus == 413)
@@ -85,7 +79,7 @@ namespace AndX.Share
                 }
             }
 
-            var create = await _api.PostAsync<CreateUploadResponse>(
+            var create = await api.PostAsync<CreateUploadResponse>(
                 AndXContract.Paths.EdgeUploads,
                 new CreateUploadRequest
                 {
@@ -94,115 +88,107 @@ namespace AndX.Share
                     FileName = payload.FileName,
                     SizeBytes = total,
                     Title = options.Title,
-                    Amount = options.Amount,
                 },
                 cancellationToken).ConfigureAwait(false);
 
-            var chunkSize = create.ChunkSize > 0 ? create.ChunkSize : _chunkSize;
+            var serverChunkSize = create.ChunkSize > 0 ? create.ChunkSize : chunkSize;
             var uploadId = create.UploadId;
             var uploadPath = AndXContract.Paths.EdgeUploads + "/" + uploadId;
 
-            try
-            {
-                // 续传探测：以 MinIO 已接收字节为准
-                var resume = await _api.GetAsync<UploadProgressResponse>(uploadPath, cancellationToken).ConfigureAwait(false);
-                var offset = ChunkPlanner.AlignedResumeOffset(resume.Received, chunkSize);
-                progress?.Report(new UploadProgress(offset, total));
+            // 续传探测：以 MinIO 已接收字节为准
+            var resume = await api.GetAsync<UploadProgressResponse>(uploadPath, cancellationToken).ConfigureAwait(false);
+            var offset = ChunkPlanner.AlignedResumeOffset(resume.Received, serverChunkSize);
+            progress?.Report(new UploadProgress(offset, total));
 
-                if (offset < total)
+            if (offset < total)
+            {
+                using (var stream = await payload.OpenReadAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    using (var stream = await payload.OpenReadAsync(cancellationToken).ConfigureAwait(false))
+                    if (offset > 0)
                     {
-                        if (offset > 0)
+                        Skip(stream, offset);
+                    }
+                    while (offset < total)
+                    {
+                        var length = ChunkPlanner.ChunkLength(total, offset, serverChunkSize);
+                        if (length <= 0)
                         {
-                            Skip(stream, offset);
+                            break;
                         }
-                        while (offset < total)
+                        var buffer = await ReadExactAsync(stream, length, cancellationToken).ConfigureAwait(false);
+                        if (buffer.Length == 0)
                         {
-                            var length = ChunkPlanner.ChunkLength(total, offset, chunkSize);
-                            if (length <= 0)
-                            {
-                                break;
-                            }
-                            var buffer = await ReadExactAsync(stream, length, cancellationToken).ConfigureAwait(false);
-                            if (buffer.Length == 0)
-                            {
-                                break;
-                            }
-                            var chunkUrl = _api.ResolveUrl(uploadPath + "?offset=" + offset);
-                            var currentOffset = offset;
-                            var reporter = progress == null
-                                ? null
-                                : new Progress<long>(sent => progress.Report(new UploadProgress(currentOffset + sent, total)));
-                            await _api.PutChunkAsync(chunkUrl, buffer, reporter, cancellationToken).ConfigureAwait(false);
-                            offset += buffer.Length;
-                            if (progress != null)
-                            {
-                                var snapshot = offset;
-                                progress.Report(new UploadProgress(snapshot, total));
-                            }
-                            if (buffer.Length < length)
-                            {
-                                break; // 流提前结束：交由 complete 校验字节数
-                            }
+                            break;
+                        }
+                        var chunkUrl = api.ResolveUrl(uploadPath + "?offset=" + offset);
+                        var currentOffset = offset;
+                        var reporter = progress == null
+                            ? null
+                            : new Progress<long>(sent => progress.Report(new UploadProgress(currentOffset + sent, total)));
+                        await api.PutChunkAsync(chunkUrl, buffer, reporter, cancellationToken).ConfigureAwait(false);
+                        offset += buffer.Length;
+                        if (progress != null)
+                        {
+                            var snapshot = offset;
+                            progress.Report(new UploadProgress(snapshot, total));
+                        }
+                        if (buffer.Length < length)
+                        {
+                            break; // 流提前结束：交由 complete 校验字节数
                         }
                     }
                 }
+            }
 
-                var done = await _api.PostAsync<CompleteUploadResponse>(uploadPath + "/complete", null, cancellationToken).ConfigureAwait(false);
-                if (progress != null)
-                {
-                    progress.Report(new UploadProgress(done.SizeBytes > 0 ? done.SizeBytes : total, total));
-                }
-                return MapShareResult(done);
-            }
-            catch
+            // 失败不自动中止：保留会话以便续传重试；调用方可在确认放弃时 AbortAsync
+            var done = await api.PostAsync<CompleteUploadResponse>(uploadPath + "/complete", null, cancellationToken).ConfigureAwait(false);
+            if (progress != null)
             {
-                // 失败不自动中止：保留会话以便续传重试；调用方可在确认放弃时 AbortAsync
-                throw;
+                progress.Report(new UploadProgress(done.SizeBytes > 0 ? done.SizeBytes : total, total));
             }
+            return MapShareResult(api, done);
         }
 
         /// <summary>中止上传会话（幂等清理）。</summary>
-        public Task AbortAsync(string uploadId, CancellationToken cancellationToken = default)
+        public static Task AbortAsync(string uploadId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(uploadId))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "uploadId 不能为空");
             }
-            return _api.DeleteAsync(AndXContract.Paths.EdgeUploads + "/" + uploadId, cancellationToken);
+            return Config.Api.DeleteAsync(AndXContract.Paths.EdgeUploads + "/" + uploadId, cancellationToken);
         }
 
         /// <summary>扫码解析（公开，可选登录）：返回预览 + 定价 + 是否已购。</summary>
-        public Task<ScanResolveResult> ResolveAsync(string token, CancellationToken cancellationToken = default)
+        public static Task<ScanResolveResult> ResolveAsync(string token, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(token))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "token 不能为空");
             }
-            return _api.GetAsync<ScanResolveResult>(AndXContract.Paths.Scan + "/" + token, cancellationToken);
+            return Config.Api.GetAsync<ScanResolveResult>(AndXContract.Paths.Scan + "/" + token, cancellationToken);
         }
 
         /// <summary>下载授权（需登录）：返回 presigned 下载地址。</summary>
-        public Task<DownloadResult> GetDownloadAsync(string token, CancellationToken cancellationToken = default)
+        public static Task<DownloadResult> GetDownloadAsync(string token, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(token))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "token 不能为空");
             }
-            return _api.GetAsync<DownloadResult>(AndXContract.Paths.ResourceDownload(token), cancellationToken);
+            return Config.Api.GetAsync<DownloadResult>(AndXContract.Paths.ResourceDownload(token), cancellationToken);
         }
 
         /// <summary>二维码 PNG 绝对地址（服务端出图）。</summary>
-        public string QrImageUrl(string token)
+        public static string QrImageUrl(string token)
         {
-            return _api.ResolveUrl(AndXContract.Paths.ResourceQrcode(token));
+            return Config.Api.ResolveUrl(AndXContract.Paths.ResourceQrcode(token));
         }
 
         /// <summary>下载二维码 PNG 原始字节（服务端出图）。</summary>
-        public Task<byte[]> GetQrPngAsync(string token, CancellationToken cancellationToken = default)
+        public static Task<byte[]> GetQrPngAsync(string token, CancellationToken cancellationToken = default)
         {
-            return _api.GetBytesAsync(AndXContract.Paths.ResourceQrcode(token), cancellationToken);
+            return Config.Api.GetBytesAsync(AndXContract.Paths.ResourceQrcode(token), cancellationToken);
         }
 
         private static string MediaTypeToWire(MediaType type)
@@ -211,7 +197,8 @@ namespace AndX.Share
         }
 
         /// <summary>一次性透传：读全量到内存（≤ chunkSize）→ POST /api/edge/resources（原始二进制 + query）。</summary>
-        private async Task<ShareResult> UploadOneShotAsync(
+        private static async Task<ShareResult> UploadOneShotAsync(
+            AndXApiClient api,
             IAndXPayload payload,
             UploadOptions options,
             MediaType mediaType,
@@ -229,16 +216,16 @@ namespace AndX.Share
                 ? null
                 : new Progress<long>(sent => progress.Report(new UploadProgress(sent, total)));
             var path = AndXContract.Paths.EdgeResources + BuildResourceQuery(options, mediaType, payload.FileName);
-            var data = await _api.PostBinaryAsync(path, bytes, reporter, cancellationToken).ConfigureAwait(false);
+            var data = await api.PostBinaryAsync(path, bytes, reporter, cancellationToken).ConfigureAwait(false);
             var done = data.ToObject<CompleteUploadResponse>(AndXJson.Serializer);
             if (progress != null)
             {
                 progress.Report(new UploadProgress(done.SizeBytes > 0 ? done.SizeBytes : total, total));
             }
-            return MapShareResult(done);
+            return MapShareResult(api, done);
         }
 
-        private ShareResult MapShareResult(CompleteUploadResponse done)
+        private static ShareResult MapShareResult(AndXApiClient api, CompleteUploadResponse done)
         {
             return new ShareResult
             {
@@ -248,27 +235,16 @@ namespace AndX.Share
                 ShareUrl = done.ShareUrl,
                 Amount = done.Amount,
                 SizeBytes = done.SizeBytes,
-                QrImageUrl = string.IsNullOrEmpty(done.QrPngUrl) ? null : _api.ResolveUrl(done.QrPngUrl),
+                QrImageUrl = string.IsNullOrEmpty(done.QrPngUrl) ? null : api.ResolveUrl(done.QrPngUrl),
             };
         }
 
         private static string BuildResourceQuery(UploadOptions options, MediaType mediaType, string fileName)
         {
-            var parts = new List<string>
-            {
-                "exhibitId=" + Uri.EscapeDataString(options.ExhibitId),
-                "mediaType=" + MediaTypeToWire(mediaType),
-                "fileName=" + Uri.EscapeDataString(fileName ?? "file"),
-            };
-            if (!string.IsNullOrEmpty(options.Title))
-            {
-                parts.Add("title=" + Uri.EscapeDataString(options.Title));
-            }
-            if (options.Amount > 0)
-            {
-                parts.Add("amount=" + options.Amount);
-            }
-            return "?" + string.Join("&", parts);
+            return "?exhibitId=" + Uri.EscapeDataString(options.ExhibitId)
+                + "&mediaType=" + MediaTypeToWire(mediaType)
+                + "&fileName=" + Uri.EscapeDataString(fileName ?? "file")
+                + (string.IsNullOrEmpty(options.Title) ? string.Empty : "&title=" + Uri.EscapeDataString(options.Title));
         }
 
         private static async Task<byte[]> ReadAllAsync(Stream stream, long total, CancellationToken cancellationToken)

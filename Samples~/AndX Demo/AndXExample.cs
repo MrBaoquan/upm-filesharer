@@ -1,12 +1,10 @@
 using System.Threading.Tasks;
 using AndX;
-using AndX.Share;
-using AndX.Pay;
 using AndX.Unity;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>AndX SDK 示例：创建门面 → 上传素材 → 显示二维码纹理。</summary>
+/// <summary>AndX SDK 示例：一次配置 → 上传素材 → 显示二维码。</summary>
 public class AndXExample : MonoBehaviour
 {
     [Tooltip("用于显示二维码的 RawImage")]
@@ -21,26 +19,23 @@ public class AndXExample : MonoBehaviour
     [Tooltip("展项 ID")]
     public string exhibitId = "1024";
 
-    private AndXHub _hub;
-
     private void Awake()
     {
-        _hub = AndXHub.Create(new AndXOptions
+        // 一次配置；密钥不入包，走环境变量（ANDX_EDGE_KEY）
+        AndX.Config.Init(new AndXOptions
         {
             Endpoint = endpoint,
-            EdgeKey = EdgeKey.FromEnvironment(), // 密钥不入包，走环境变量
-            Transport = TransportMode.Auto,
-        })
-        .Use<ShareCapability>()
-        .Use<PayCapability>();
+            EdgeKey = EdgeKey.FromEnvironment(),
+            AllowInsecureHttp = true, // 仅本地联调；生产移除
+        });
     }
 
     public async void ShareFile()
     {
-        // 上传素材（SDK 内部自动分流：当前统一走 Edge 分片控制面）
-        ShareResult result = await _hub.Share().UploadAsync(
+        // 上传素材（SDK 内部自动分流：小文件一次性透传 / 大文件分片续传）
+        ShareResult result = await AndX.Share.UploadAsync(
             new TexturePayload(targetTex),
-            new UploadOptions { ExhibitId = exhibitId, Title = "展项截图", Amount = 0 },
+            new UploadOptions { ExhibitId = exhibitId, Title = "展项截图" },
             p => Debug.Log($"[AndX] {p.Percent:P0}"));
 
         // 服务端出图 → 纹理
@@ -49,6 +44,6 @@ public class AndXExample : MonoBehaviour
 
     private void OnDestroy()
     {
-        _hub = null;
+        AndX.Config.Reset();
     }
 }

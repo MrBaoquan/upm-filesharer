@@ -1,6 +1,6 @@
 {
   "name": "com.parful.andx",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "displayName": "AndX",
   "description": "展项能力平台：通过二维码共享资源（图片/视频）与扫码付费",
   "unity": "2020.3",

@@ -29,7 +29,7 @@ namespace AndX
         Task<Stream> OpenReadAsync(CancellationToken cancellationToken = default);
     }
 
-    /// <summary>上传选项。</summary>
+    /// <summary>上传选项。定价不由端侧决定（由服务端/后台配置）。</summary>
     public sealed class UploadOptions
     {
         /// <summary>展项 ID。</summary>
@@ -37,9 +37,6 @@ namespace AndX
 
         /// <summary>素材标题（可选）。</summary>
         public string Title { get; set; }
-
-        /// <summary>定价（单位：分，整数；0=免费）。默认免费。</summary>
-        public long Amount { get; set; }
 
         /// <summary>覆盖载荷自带的素材类型（可选）。</summary>
         public MediaType? MediaType { get; set; }
