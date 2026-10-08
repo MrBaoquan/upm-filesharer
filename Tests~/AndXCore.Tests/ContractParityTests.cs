@@ -97,7 +97,9 @@ namespace AndX.Tests
         public void Headers_match_spec()
         {
             var versionTs = ReadSpec("src/version.ts");
+            Assert.Contains("authorization: 'Authorization'", versionTs);
             Assert.Contains("edgeKey: 'x-edge-key'", versionTs);
+            Assert.Equal("Authorization", AndXContract.Headers.Authorization);
             Assert.Equal("x-edge-key", AndXContract.Headers.EdgeKey);
         }
     }

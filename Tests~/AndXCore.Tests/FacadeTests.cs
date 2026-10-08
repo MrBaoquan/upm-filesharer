@@ -62,11 +62,48 @@ namespace AndX.Tests
             var transport = OkTransport();
             Config.Init(new AndXOptions { Endpoint = "https://e.com", EdgeKey = "k" }, transport);
 
-            await Share.IssueTicketAsync(AndXContract.Purposes.ResourceDownload, mediaId: "1");
+            await Share.IssueResourceTicketAsync("1");
             await Share.ResolveAsync("tok");
 
             Assert.True(transport.Requests[0].HasEdgeKey);
             Assert.False(transport.Requests[1].HasEdgeKey);
+        }
+
+        [Fact]
+        public async Task Access_token_is_sent_as_bearer_on_all_requests()
+        {
+            var transport = OkTransport();
+            Config.Init(new AndXOptions { Endpoint = "https://e.com", AccessToken = "jwt-1" }, transport);
+
+            await Share.ResolveAsync("tok");
+
+            Assert.Equal("Bearer jwt-1", transport.Requests[0].Headers[AndXContract.Headers.Authorization]);
+        }
+
+        [Fact]
+        public async Task Access_token_provider_reflects_latest_value()
+        {
+            var transport = OkTransport();
+            var token = "jwt-old";
+            Config.Init(new AndXOptions { Endpoint = "https://e.com", AccessTokenProvider = () => token }, transport);
+
+            await Share.ResolveAsync("tok");
+            token = "jwt-new";
+            await Share.ResolveAsync("tok");
+
+            Assert.Equal("Bearer jwt-old", transport.Requests[0].Headers[AndXContract.Headers.Authorization]);
+            Assert.Equal("Bearer jwt-new", transport.Requests[1].Headers[AndXContract.Headers.Authorization]);
+        }
+
+        [Fact]
+        public async Task No_authorization_header_when_token_absent()
+        {
+            var transport = OkTransport();
+            Config.Init(new AndXOptions { Endpoint = "https://e.com" }, transport);
+
+            await Share.ResolveAsync("tok");
+
+            Assert.False(transport.Requests[0].Headers.ContainsKey(AndXContract.Headers.Authorization));
         }
 
         [Fact]

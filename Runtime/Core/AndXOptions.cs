@@ -11,6 +11,15 @@ namespace AndX
         /// <summary>边缘网关共享密钥（X-Edge-Key）；仅对 /api/edge/* 生效。</summary>
         public string EdgeKey { get; set; }
 
+        /// <summary>登录令牌（可选）：需登录接口（如资源下载授权）会以 <c>Authorization: Bearer</c> 注入。</summary>
+        public string AccessToken { get; set; }
+
+        /// <summary>
+        /// 登录令牌提供者（可选）：每次请求时取值，便于令牌刷新；返回 null/空 则不注入。
+        /// 设置后优先于 <see cref="AccessToken"/>。
+        /// </summary>
+        public Func<string> AccessTokenProvider { get; set; }
+
         /// <summary>共享核实现选择。</summary>
         public TransportMode Transport { get; set; } = TransportMode.Auto;
 
