@@ -1,16 +1,18 @@
 {
-  "name": "com.parful.filesharer",
+  "name": "com.parful.andx",
   "version": "1.0.1",
-  "displayName": "File Sharer",
-  "description": "通过二维码共享文件",
+  "displayName": "AndX",
+  "description": "展项能力平台：通过二维码共享资源（图片/视频）与扫码付费",
   "unity": "2020.1",
   "documentationUrl": "http://readme.andcrane.com:6875/books/upm/page/d2dde",
-  "changelogUrl": "http://upm.andcrane.com:4873/-/web/detail/com.parful.filesharer",
+  "changelogUrl": "http://upm.andcrane.com:4873/-/web/detail/com.parful.andx",
   "licensesUrl": "https://example.com/licensing.html",
   "dependencies": {},
  "keywords": [
+    "andx",
     "sharer",
-    "qrcode"
+    "qrcode",
+    "pay"
   ],
   "author": {
     "name": "MrBaoquan",
@@ -18,9 +20,9 @@
   },
   "samples": [
     {
-      "displayName":"FileSharer Demo",
-      "description":"分享Texture2D文件示例",
-      "path":"Samples~/FileSharer Demo"
+      "displayName":"AndX Demo",
+      "description":"分享 Texture2D 资源示例",
+      "path":"Samples~/AndX Demo"
     }
   ]
 }
