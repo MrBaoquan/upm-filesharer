@@ -7,9 +7,9 @@ using Xunit;
 
 namespace AndX.Tests
 {
-    public class AiTests
+    public class AITests
     {
-        public AiTests()
+        public AITests()
         {
             Config.Reset();
         }
@@ -29,11 +29,11 @@ namespace AndX.Tests
                 + "[{\"capability\":\"ai.image.generate\",\"model\":\"ai-image\",\"available\":true}]}"));
             Configure(transport);
 
-            var caps = await Ai.GetCapabilitiesAsync();
+            var caps = await AI.GetCapabilitiesAsync();
 
             Assert.True(caps.Available);
             Assert.Single(caps.Capabilities);
-            Assert.Equal(AndXContract.AiCapabilities.ImageGenerate, caps.Capabilities[0].Capability);
+            Assert.Equal(AndXContract.AICapabilities.ImageGenerate, caps.Capabilities[0].Capability);
             Assert.Equal("ai-image", caps.Capabilities[0].Model);
 
             var r = transport.Requests.Single();
@@ -49,7 +49,7 @@ namespace AndX.Tests
                 "{\"jobNo\":\"aj_0123456789abcdef01234567\",\"status\":\"PENDING\",\"cached\":false}"));
             Configure(transport);
 
-            var job = await Ai.CreateImageJobAsync(new AiImageRequest
+            var job = await AI.CreateImageJobAsync(new AIImageRequest
             {
                 Prompt = "熊猫",
                 ExhibitId = "1024",
@@ -59,9 +59,9 @@ namespace AndX.Tests
             });
 
             Assert.Equal("aj_0123456789abcdef01234567", job.JobNo);
-            Assert.Equal(AndXContract.AiJobStatuses.Pending, job.Status);
+            Assert.Equal(AndXContract.AIJobStatuses.Pending, job.Status);
             Assert.False(job.Cached);
-            Assert.Equal(AndXContract.AiCapabilities.ImageGenerate, job.Capability);
+            Assert.Equal(AndXContract.AICapabilities.ImageGenerate, job.Capability);
 
             var r = transport.Requests.Single();
             Assert.Equal("POST", r.Method);
@@ -81,7 +81,7 @@ namespace AndX.Tests
                 "{\"jobNo\":\"aj_1\",\"status\":\"PENDING\",\"cached\":false}"));
             Configure(transport, exhibitId: "777");
 
-            await Ai.CreateImageJobAsync(new AiImageRequest { Prompt = "x" });
+            await AI.CreateImageJobAsync(new AIImageRequest { Prompt = "x" });
 
             Assert.Contains("\"exhibitId\":\"777\"", transport.Requests.Single().Body);
         }
@@ -93,7 +93,7 @@ namespace AndX.Tests
                 "{\"jobNo\":\"aj_1\",\"status\":\"PENDING\",\"cached\":false}"));
             Configure(transport);
 
-            await Ai.CreateImageJobAsync(new AiImageRequest { Prompt = "x" });
+            await AI.CreateImageJobAsync(new AIImageRequest { Prompt = "x" });
 
             Assert.DoesNotContain("exhibitId", transport.Requests.Single().Body);
         }
@@ -105,7 +105,7 @@ namespace AndX.Tests
             Configure(transport);
 
             var ex = await Assert.ThrowsAsync<AndXException>(
-                () => Ai.CreateImageJobAsync(new AiImageRequest { Prompt = "" }));
+                () => AI.CreateImageJobAsync(new AIImageRequest { Prompt = "" }));
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
             Assert.Empty(transport.Requests);
         }
@@ -120,9 +120,9 @@ namespace AndX.Tests
                 + "\"createdAt\":\"2026-01-01T00:00:00Z\",\"updatedAt\":\"2026-01-01T00:00:01Z\"}"));
             Configure(transport);
 
-            var job = await Ai.GetJobAsync("aj_1");
+            var job = await AI.GetJobAsync("aj_1");
 
-            Assert.Equal(AndXContract.AiJobStatuses.Succeeded, job.Status);
+            Assert.Equal(AndXContract.AIJobStatuses.Succeeded, job.Status);
             Assert.Equal("88123", job.MediaId);
             Assert.Equal(new[] { "88123" }, job.MediaIds);
             Assert.Equal("https://minio/x?sig=1", job.Urls.Single());
@@ -140,9 +140,9 @@ namespace AndX.Tests
                 "{\"jobNo\":\"aj_1\",\"status\":\"CANCELED\"}"));
             Configure(transport);
 
-            var job = await Ai.CancelJobAsync("aj_1");
+            var job = await AI.CancelJobAsync("aj_1");
 
-            Assert.Equal(AndXContract.AiJobStatuses.Canceled, job.Status);
+            Assert.Equal(AndXContract.AIJobStatuses.Canceled, job.Status);
             Assert.True(job.IsTerminal);
             var r = transport.Requests.Single();
             Assert.Equal("POST", r.Method);
@@ -168,11 +168,11 @@ namespace AndX.Tests
             });
             Configure(transport);
 
-            var job = await Ai.GenerateImageAsync(
-                new AiImageRequest { Prompt = "p" },
-                new AiWaitOptions { Interval = TimeSpan.FromMilliseconds(1) });
+            var job = await AI.GenerateImageAsync(
+                new AIImageRequest { Prompt = "p" },
+                new AIWaitOptions { Interval = TimeSpan.FromMilliseconds(1) });
 
-            Assert.Equal(AndXContract.AiJobStatuses.Succeeded, job.Status);
+            Assert.Equal(AndXContract.AIJobStatuses.Succeeded, job.Status);
             Assert.Equal("9", job.MediaId);
             Assert.Equal(2, polls);       // 两次查询：RUNNING → SUCCEEDED
             Assert.Equal(3, transport.Calls); // 提交 + 两次查询
@@ -185,18 +185,18 @@ namespace AndX.Tests
                 "{\"jobNo\":\"aj_1\",\"status\":\"RUNNING\"}"));
             Configure(transport);
 
-            var job = await Ai.WaitForJobAsync(
+            var job = await AI.WaitForJobAsync(
                 "aj_1",
-                new AiWaitOptions { Timeout = TimeSpan.FromMilliseconds(5), Interval = TimeSpan.FromMilliseconds(1) });
+                new AIWaitOptions { Timeout = TimeSpan.FromMilliseconds(5), Interval = TimeSpan.FromMilliseconds(1) });
 
-            Assert.Equal(AndXContract.AiJobStatuses.Running, job.Status);
+            Assert.Equal(AndXContract.AIJobStatuses.Running, job.Status);
             Assert.False(job.IsTerminal);
         }
 
         [Fact]
         public async Task GetCapabilities_before_init_throws_configuration()
         {
-            var ex = await Assert.ThrowsAsync<AndXException>(() => Ai.GetCapabilitiesAsync());
+            var ex = await Assert.ThrowsAsync<AndXException>(() => AI.GetCapabilitiesAsync());
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
         }
     }

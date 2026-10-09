@@ -17,13 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 空载荷（`Length == 0`）前置为 `CONFIGURATION` 错误，不再发起请求。
 - **接入最小化**：新增 `AndX.Config.InitLocal()` 零参数接入本机 AndXEdge（默认 `http://127.0.0.1:6699`）；`AndXOptions.EdgeKey` / `AccessToken` 降级为「绕过 Edge 直连后端」高级选项，环回地址 http 免显式 `AllowInsecureHttp`。
 - `UploadOptions.ExhibitId` / `PayTicketOptions.ExhibitId` 改为可选：缺省由 Edge / 服务端 `ANDX_EDGE_EXHIBIT_ID` 提供，一个 Edge 服务多展项时才显式传入。
-- 新增全局默认展项：`AndXOptions.ExhibitId` 作为 `AndX.Share` / `AndX.Pay` / `AndX.Ai` 未显式传参时的兜底（调用处显式值优先）；`Config.Reset()` 一并清空。
+- 新增全局默认展项：`AndXOptions.ExhibitId` 作为 `AndX.Share` / `AndX.Pay` / `AndX.AI` 未显式传参时的兜底（调用处显式值优先）；`Config.Reset()` 一并清空。
 - `AndXApiClient.ResolveUrl` 对绝对 URL（`http(s)://`）原样透传，仅相对路径才拼接 `Endpoint`。
 
 ### Added
 
-- **`AndX.Ai` 能力域**：AI 生成任务提交与轮询。`Ai.GetCapabilitiesAsync()`、`Ai.CreateImageJobAsync(AiImageRequest)`、`Ai.GetJobAsync(jobNo)`、`Ai.CancelJobAsync(jobNo)`、`Ai.WaitForJobAsync(jobNo, AiWaitOptions)`、`Ai.GenerateImageAsync(AiImageRequest, ...)`（提交+等待一步到位）。经 AndXEdge 透明转发，端侧不接触 AI 供应商密钥、不参与定价；成功产物 `AiJob.MediaId` 可直接复用分享/二维码/下载/付费链路。
-- `AiJob` / `AiCapabilitiesResult` / `AiCapabilityInfo` / `AiImageRequest` / `AiWaitOptions` 等对外模型；`AiJob.IsTerminal` 便捷判定。
+- **`AndX.AI` 能力域**：AI 生成任务提交与轮询。`AI.GetCapabilitiesAsync()`、`AI.CreateImageJobAsync(AIImageRequest)`、`AI.GetJobAsync(jobNo)`、`AI.CancelJobAsync(jobNo)`、`AI.WaitForJobAsync(jobNo, AIWaitOptions)`、`AI.GenerateImageAsync(AIImageRequest, ...)`（提交+等待一步到位）。经 AndXEdge 透明转发，端侧不接触 AI 供应商密钥、不参与定价；成功产物 `AIJob.MediaId` 可直接复用分享/二维码/下载/付费链路。
+- `AIJob` / `AICapabilitiesResult` / `AICapabilityInfo` / `AIImageRequest` / `AIWaitOptions` 等对外模型；`AIJob.IsTerminal` 便捷判定。
 - 契约同步（`andx-sdk-spec` → `AndXContract`）：AI 能力标识、任务状态机、接口路径（`/api/ai/capabilities`、`/api/ai/jobs`）与 4 个 AI 错误码；契约版本 `1.0` → `1.1`（新增 AI 能力域，向后兼容）。
 - `AndX.Config.IsConfigured` / `AndX.Config.Reset()`。
 - `AndXContract.Defaults`（`LocalEdgeEndpoint` / `LocalEdgePort`）：本机 AndXEdge 默认基址常量。

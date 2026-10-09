@@ -85,13 +85,13 @@ OrderStatusInfo status = await AndX.Pay.QueryOrderAsync(pay.OrderNo);
 AndX.Config.Init(new AndXOptions { Endpoint = "http://127.0.0.1:6699", ExhibitId = "1024" });
 
 // 能力可用性（网关未配置时 Available=false 并回显 Reason，不抛错）
-AiCapabilitiesResult caps = await AndX.Ai.GetCapabilitiesAsync();
+AICapabilitiesResult caps = await AndX.AI.GetCapabilitiesAsync();
 
 // 一步生图：提交 + 轮询，成功后用 MediaId 复用分享 / 二维码 / 下载 / 付费链路
-AiJob job = await AndX.Ai.GenerateImageAsync(
-    new AiImageRequest { Prompt = "赛博朋克城市夜景", Size = "1024x1024" },
-    progress: j => Debug.Log($"[AndX.Ai] {j.Status}"));
-if (job.Status == AndXContract.AiJobStatuses.Succeeded)
+AIJob job = await AndX.AI.GenerateImageAsync(
+    new AIImageRequest { Prompt = "赛博朋克城市夜景", Size = "1024x1024" },
+    progress: j => Debug.Log($"[AndX.AI] {j.Status}"));
+if (job.Status == AndXContract.AIJobStatuses.Succeeded)
 {
     IssuedTicket ticket = await AndX.Share.IssueResourceTicketAsync(job.MediaId);
 }
@@ -99,7 +99,7 @@ if (job.Status == AndXContract.AiJobStatuses.Succeeded)
 
 > 异步用法：`CreateImageJobAsync` 提交拿 `jobNo`，再 `GetJobAsync` / `WaitForJobAsync` 轮询，`CancelJobAsync` 取消（仅 `PENDING` 生效）。
 > 端侧只传 `prompt`（+ 可选尺寸/数量/参考图 `input`），AI 供应商密钥只在服务端聚合网关，端侧不接触、不参与定价。
-> 同参可用 `AiImageRequest.IdemKey` 幂等复用成功结果；`AiJob.IsTerminal` 判断是否已结束。
+> 同参可用 `AIImageRequest.IdemKey` 幂等复用成功结果；`AIJob.IsTerminal` 判断是否已结束。
 
 ## 错误处理
 
@@ -140,7 +140,7 @@ catch (AndXException e)
 | `AndX.Config` | `InitLocal()` / `Init(AndXOptions)` / `Init(AndXOptions, IAndXTransport)` / `Reset()` / `IsConfigured` |
 | `AndX.Share` | `UploadAsync` / `IssueResourceTicketAsync` / `ResolveAsync` / `GetDownloadAsync` / `AbortAsync` / `QrImageUrl` / `GetQrPngAsync` |
 | `AndX.Pay` | `CreateTicketAsync` / `QueryOrderAsync` / `QrImageUrl` / `GetQrPngAsync` |
-| `AndX.Ai` | `GetCapabilitiesAsync` / `CreateImageJobAsync` / `GetJobAsync` / `CancelJobAsync` / `WaitForJobAsync` / `GenerateImageAsync` |
+| `AndX.AI` | `GetCapabilitiesAsync` / `CreateImageJobAsync` / `GetJobAsync` / `CancelJobAsync` / `WaitForJobAsync` / `GenerateImageAsync` |
 | `AndX.Unity` | `TexturePayload` / `FilePathPayload` / `ByteArrayPayload` / `LoadQrTextureAsync()` |
 
 完整接口与平台说明见仓库文档 `docs/design/implementation.md` §10。

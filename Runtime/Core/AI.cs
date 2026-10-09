@@ -8,75 +8,75 @@ namespace AndX
     /// <summary>
     /// AI 能力（静态入口）：异步生成任务提交、状态查询、取消与等待。
     /// 经 AndXEdge 透明转发（服务端以 X-Edge-Key 鉴权）；端侧不接触 AI 供应商密钥、不参与定价。
-    /// 成功产物的 <see cref="AiJob.MediaId"/> 可直接复用分享 / 二维码 / 下载 / 付费链路。
+    /// 成功产物的 <see cref="AIJob.MediaId"/> 可直接复用分享 / 二维码 / 下载 / 付费链路。
     /// </summary>
-    public static class Ai
+    public static class AI
     {
         /// <summary>能力清单与整体可用性（网关未配置时 <c>Available=false</c> 并回显 <c>Reason</c>，不抛错）。</summary>
-        public static Task<AiCapabilitiesResult> GetCapabilitiesAsync(CancellationToken cancellationToken = default)
+        public static Task<AICapabilitiesResult> GetCapabilitiesAsync(CancellationToken cancellationToken = default)
         {
-            return Config.Api.GetAsync<AiCapabilitiesResult>(AndXContract.Paths.AiCapabilitiesPath, cancellationToken);
+            return Config.Api.GetAsync<AICapabilitiesResult>(AndXContract.Paths.AICapabilitiesPath, cancellationToken);
         }
 
         /// <summary>提交生图任务（异步）：返回 jobNo；产物完成后经 <see cref="GetJobAsync"/> 取回 mediaId。</summary>
-        public static async Task<AiJob> CreateImageJobAsync(AiImageRequest request, CancellationToken cancellationToken = default)
+        public static async Task<AIJob> CreateImageJobAsync(AIImageRequest request, CancellationToken cancellationToken = default)
         {
             if (request == null)
             {
-                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "AiImageRequest 不能为空");
+                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "AIImageRequest 不能为空");
             }
             if (string.IsNullOrEmpty(request.Prompt))
             {
-                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "AiImageRequest.Prompt 不能为空");
+                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "AIImageRequest.Prompt 不能为空");
             }
 
             var exhibitId = Config.ResolveExhibitId(request.ExhibitId);
             var hasOptions = !string.IsNullOrEmpty(request.Size) || request.N.HasValue;
-            var dto = new CreateAiJobRequest
+            var dto = new CreateAIJobRequest
             {
-                Capability = AndXContract.AiCapabilities.ImageGenerate,
+                Capability = AndXContract.AICapabilities.ImageGenerate,
                 Prompt = request.Prompt,
                 ExhibitId = string.IsNullOrEmpty(exhibitId) ? null : exhibitId,
                 Input = request.Input,
-                Options = hasOptions ? new AiImageOptions { Size = request.Size, N = request.N } : null,
+                Options = hasOptions ? new AIImageOptions { Size = request.Size, N = request.N } : null,
                 IdemKey = request.IdemKey,
             };
             var data = await Config.Api
-                .PostRawAsync(AndXContract.Paths.AiJobsPath, dto, cancellationToken)
+                .PostRawAsync(AndXContract.Paths.AIJobsPath, dto, cancellationToken)
                 .ConfigureAwait(false);
-            var created = data.ToObject<AiJob>(AndXJson.Serializer) ?? new AiJob();
+            var created = data.ToObject<AIJob>(AndXJson.Serializer) ?? new AIJob();
             // 提交响应只含 jobNo/status(/cached)；补全已知能力，其余字段待查询
             created.Capability = string.IsNullOrEmpty(created.Capability) ? dto.Capability : created.Capability;
             return created;
         }
 
         /// <summary>查询任务状态与结果（SUCCEEDED 时返回 mediaId / urls）。</summary>
-        public static Task<AiJob> GetJobAsync(string jobNo, CancellationToken cancellationToken = default)
+        public static Task<AIJob> GetJobAsync(string jobNo, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(jobNo))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "jobNo 不能为空");
             }
-            return Config.Api.GetAsync<AiJob>(AndXContract.Paths.AiJob(jobNo), cancellationToken);
+            return Config.Api.GetAsync<AIJob>(AndXContract.Paths.AIJob(jobNo), cancellationToken);
         }
 
         /// <summary>取消任务（仅 PENDING 生效；返回取消后的任务视图）。</summary>
-        public static Task<AiJob> CancelJobAsync(string jobNo, CancellationToken cancellationToken = default)
+        public static Task<AIJob> CancelJobAsync(string jobNo, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(jobNo))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "jobNo 不能为空");
             }
-            return Config.Api.PostAsync<AiJob>(AndXContract.Paths.AiJobCancel(jobNo), null, cancellationToken);
+            return Config.Api.PostAsync<AIJob>(AndXContract.Paths.AIJobCancel(jobNo), null, cancellationToken);
         }
 
         /// <summary>
         /// 轮询直到任务进入终态或超时；返回最后一次观测到的任务（超时可能仍为 PENDING/RUNNING）。
         /// </summary>
-        public static async Task<AiJob> WaitForJobAsync(
+        public static async Task<AIJob> WaitForJobAsync(
             string jobNo,
-            AiWaitOptions waitOptions = null,
-            IProgress<AiJob> progress = null,
+            AIWaitOptions waitOptions = null,
+            IProgress<AIJob> progress = null,
             CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(jobNo))
@@ -84,7 +84,7 @@ namespace AndX
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "jobNo 不能为空");
             }
 
-            var options = waitOptions ?? new AiWaitOptions();
+            var options = waitOptions ?? new AIWaitOptions();
             var interval = options.Interval > TimeSpan.Zero ? options.Interval : TimeSpan.FromSeconds(2);
             var timeout = options.Timeout > TimeSpan.Zero ? options.Timeout : TimeSpan.FromSeconds(120);
             var deadline = DateTime.UtcNow + timeout;
@@ -109,12 +109,12 @@ namespace AndX
 
         /// <summary>
         /// 一步生图：提交 + 轮询等待，返回终态任务。成功时用 <c>job.MediaId</c> / <c>job.Urls</c>。
-        /// 参数最小化：仅 <see cref="AiImageRequest.Prompt"/> 必填，其余可省（展项取全局默认）。
+        /// 参数最小化：仅 <see cref="AIImageRequest.Prompt"/> 必填，其余可省（展项取全局默认）。
         /// </summary>
-        public static async Task<AiJob> GenerateImageAsync(
-            AiImageRequest request,
-            AiWaitOptions waitOptions = null,
-            IProgress<AiJob> progress = null,
+        public static async Task<AIJob> GenerateImageAsync(
+            AIImageRequest request,
+            AIWaitOptions waitOptions = null,
+            IProgress<AIJob> progress = null,
             CancellationToken cancellationToken = default)
         {
             var created = await CreateImageJobAsync(request, cancellationToken).ConfigureAwait(false);

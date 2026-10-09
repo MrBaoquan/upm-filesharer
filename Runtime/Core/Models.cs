@@ -191,7 +191,7 @@ namespace AndX
     }
 
     /// <summary>AI 能力可用性（单项）。</summary>
-    public sealed class AiCapabilityInfo
+    public sealed class AICapabilityInfo
     {
         /// <summary>能力标识，如 ai.image.generate。</summary>
         public string Capability { get; set; }
@@ -204,7 +204,7 @@ namespace AndX
     }
 
     /// <summary>AI 能力清单与整体可用性。</summary>
-    public sealed class AiCapabilitiesResult
+    public sealed class AICapabilitiesResult
     {
         /// <summary>AI 能力整体是否可用（聚合网关已配置）。</summary>
         public bool Available { get; set; }
@@ -213,11 +213,11 @@ namespace AndX
         public string Reason { get; set; }
 
         /// <summary>各能力明细。</summary>
-        public System.Collections.Generic.List<AiCapabilityInfo> Capabilities { get; set; }
+        public System.Collections.Generic.List<AICapabilityInfo> Capabilities { get; set; }
     }
 
     /// <summary>生图任务提交参数（不含密钥、不含定价）。</summary>
-    public sealed class AiImageRequest
+    public sealed class AIImageRequest
     {
         /// <summary>提示词（必填）。</summary>
         public string Prompt { get; set; }
@@ -239,11 +239,11 @@ namespace AndX
     }
 
     /// <summary>AI 生成任务。</summary>
-    public sealed class AiJob
+    public sealed class AIJob
     {
         public string JobNo { get; set; }
 
-        /// <summary>状态：见 <see cref="AndX.Core.AndXContract.AiJobStatuses"/>。</summary>
+        /// <summary>状态：见 <see cref="AndX.Core.AndXContract.AIJobStatuses"/>。</summary>
         public string Status { get; set; }
 
         public string Capability { get; set; }
@@ -276,12 +276,12 @@ namespace AndX
         /// <summary>是否终态（SUCCEEDED / FAILED / CANCELED）。</summary>
         public bool IsTerminal
         {
-            get { return AndX.Core.AndXContract.AiJobStatuses.IsTerminal(Status); }
+            get { return AndX.Core.AndXContract.AIJobStatuses.IsTerminal(Status); }
         }
     }
 
-    /// <summary>轮询等待选项（用于 <c>AndX.Ai.WaitForJobAsync</c> / <c>GenerateImageAsync</c>）。</summary>
-    public sealed class AiWaitOptions
+    /// <summary>轮询等待选项（用于 <c>AndX.AI.WaitForJobAsync</c> / <c>GenerateImageAsync</c>）。</summary>
+    public sealed class AIWaitOptions
     {
         /// <summary>最长等待时间（默认 120 秒）。</summary>
         public System.TimeSpan Timeout { get; set; } = System.TimeSpan.FromSeconds(120);

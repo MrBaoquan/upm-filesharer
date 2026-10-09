@@ -37,21 +37,21 @@ namespace AndX.Core
             public const string ResourceOrders = "/api/pay/resource-orders";
 
             /// <summary>AI 能力清单接口（经 Edge 转发，X-Edge-Key）。</summary>
-            public const string AiCapabilitiesPath = "/api/ai/capabilities";
+            public const string AICapabilitiesPath = "/api/ai/capabilities";
 
             /// <summary>AI 任务提交接口（经 Edge 转发，X-Edge-Key）。</summary>
-            public const string AiJobsPath = "/api/ai/jobs";
+            public const string AIJobsPath = "/api/ai/jobs";
 
             /// <summary>AI 任务详情路径：/api/ai/jobs/{jobNo}</summary>
-            public static string AiJob(string jobNo)
+            public static string AIJob(string jobNo)
             {
-                return AiJobsPath + "/" + jobNo;
+                return AIJobsPath + "/" + jobNo;
             }
 
             /// <summary>AI 任务取消路径：/api/ai/jobs/{jobNo}/cancel</summary>
-            public static string AiJobCancel(string jobNo)
+            public static string AIJobCancel(string jobNo)
             {
-                return AiJobsPath + "/" + jobNo + "/cancel";
+                return AIJobsPath + "/" + jobNo + "/cancel";
             }
 
             /// <summary>资源二维码 PNG 路径（相对）：/api/resources/{token}/qrcode.png</summary>
@@ -74,15 +74,15 @@ namespace AndX.Core
             public const string ExhibitPay = "EXHIBIT_PAY";
         }
 
-        /// <summary>AI 能力标识（镜像 spec <c>src/ai.ts</c> 的 <c>AiCapability</c>）。</summary>
-        public static class AiCapabilities
+        /// <summary>AI 能力标识（镜像 spec <c>src/ai.ts</c> 的 <c>AICapability</c>）。</summary>
+        public static class AICapabilities
         {
             public const string ImageGenerate = "ai.image.generate";
             public const string VideoGenerate = "ai.video.generate";
         }
 
-        /// <summary>AI 任务状态机（镜像 spec <c>AiJobStatus</c>）。</summary>
-        public static class AiJobStatuses
+        /// <summary>AI 任务状态机（镜像 spec <c>AIJobStatus</c>）。</summary>
+        public static class AIJobStatuses
         {
             public const string Pending = "PENDING";
             public const string Running = "RUNNING";
@@ -167,10 +167,10 @@ namespace AndX.Core
             public const string PaySessionExpired = "PAY_SESSION_EXPIRED";
             public const string PaySessionNotPayable = "PAY_SESSION_NOT_PAYABLE";
 
-            public const string AiDisabled = "AI_DISABLED";
-            public const string AiCapabilityUnsupported = "AI_CAPABILITY_UNSUPPORTED";
-            public const string AiJobNotFound = "AI_JOB_NOT_FOUND";
-            public const string AiProviderError = "AI_PROVIDER_ERROR";
+            public const string AIDisabled = "AI_DISABLED";
+            public const string AICapabilityUnsupported = "AI_CAPABILITY_UNSUPPORTED";
+            public const string AIJobNotFound = "AI_JOB_NOT_FOUND";
+            public const string AIProviderError = "AI_PROVIDER_ERROR";
         }
 
         /// <summary>SDK 侧错误码（网络 / 超时 / 取消 / 配置，非服务端返回）。</summary>

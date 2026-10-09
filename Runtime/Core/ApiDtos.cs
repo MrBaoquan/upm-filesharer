@@ -65,18 +65,18 @@ namespace AndX.Core
     }
 
     /// <summary>提交 AI 生成任务入参（线格式；camelCase 由 AndXJson 统一处理）。</summary>
-    internal sealed class CreateAiJobRequest
+    internal sealed class CreateAIJobRequest
     {
         public string Capability { get; set; }
         public string Prompt { get; set; }
         public string ExhibitId { get; set; }
         public IDictionary<string, object> Input { get; set; }
-        public AiImageOptions Options { get; set; }
+        public AIImageOptions Options { get; set; }
         public string IdemKey { get; set; }
     }
 
     /// <summary>生图参数（仅透传，端侧不定价、不选供应商）。</summary>
-    internal sealed class AiImageOptions
+    internal sealed class AIImageOptions
     {
         public string Size { get; set; }
         public int? N { get; set; }
