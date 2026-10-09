@@ -117,8 +117,8 @@ namespace AndX.Tests
 
             Assert.Equal("/api/ai/capabilities", AndXContract.Paths.AICapabilitiesPath);
             Assert.Equal("/api/ai/jobs", AndXContract.Paths.AIJobsPath);
-            Assert.Equal("/api/ai/jobs/aj_1", AndXContract.Paths.AIJob("aj_1"));
-            Assert.Equal("/api/ai/jobs/aj_1/cancel", AndXContract.Paths.AIJobCancel("aj_1"));
+            Assert.Equal("/api/ai/jobs/aj_1", AndXContract.Paths.AIJobPath("aj_1"));
+            Assert.Equal("/api/ai/jobs/aj_1/cancel", AndXContract.Paths.AIJobCancelPath("aj_1"));
 
             foreach (var status in new[]
             {

@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -191,7 +192,7 @@ namespace AndX
     }
 
     /// <summary>AI 能力可用性（单项）。</summary>
-    public sealed class AICapabilityInfo
+    public sealed class AICapability
     {
         /// <summary>能力标识，如 ai.image.generate。</summary>
         public string Capability { get; set; }
@@ -213,7 +214,7 @@ namespace AndX
         public string Reason { get; set; }
 
         /// <summary>各能力明细。</summary>
-        public System.Collections.Generic.List<AICapabilityInfo> Capabilities { get; set; }
+        public System.Collections.Generic.List<AICapability> Capabilities { get; set; }
     }
 
     /// <summary>生图任务提交参数（不含密钥、不含定价）。</summary>
@@ -229,7 +230,8 @@ namespace AndX
         public string Size { get; set; }
 
         /// <summary>生成数量（1~4，可选；缺省由服务端/模型决定）。</summary>
-        public int? N { get; set; }
+        [JsonProperty("n")]
+        public int? Count { get; set; }
 
         /// <summary>扩展入参（可选，如参考图 mediaId）。</summary>
         public System.Collections.Generic.IDictionary<string, object> Input { get; set; }
@@ -263,7 +265,8 @@ namespace AndX
         public System.Collections.Generic.List<string> MediaIds { get; set; }
 
         /// <summary>结果可下载地址（presigned，仅 SUCCEEDED 时非空）。</summary>
-        public System.Collections.Generic.List<string> Urls { get; set; }
+        [JsonProperty("urls")]
+        public System.Collections.Generic.List<string> ResultUrls { get; set; }
 
         public string ErrorCode { get; set; }
 

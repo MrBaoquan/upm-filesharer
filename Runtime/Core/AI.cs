@@ -18,6 +18,12 @@ namespace AndX
             return Config.Api.GetAsync<AICapabilitiesResult>(AndXContract.Paths.AICapabilitiesPath, cancellationToken);
         }
 
+        /// <summary>提交生图任务（最小参数）：仅需提示词，其余取默认。</summary>
+        public static Task<AIJob> CreateImageJobAsync(string prompt, CancellationToken cancellationToken = default)
+        {
+            return CreateImageJobAsync(new AIImageRequest { Prompt = prompt }, cancellationToken);
+        }
+
         /// <summary>提交生图任务（异步）：返回 jobNo；产物完成后经 <see cref="GetJobAsync"/> 取回 mediaId。</summary>
         public static async Task<AIJob> CreateImageJobAsync(AIImageRequest request, CancellationToken cancellationToken = default)
         {
@@ -31,14 +37,14 @@ namespace AndX
             }
 
             var exhibitId = Config.ResolveExhibitId(request.ExhibitId);
-            var hasOptions = !string.IsNullOrEmpty(request.Size) || request.N.HasValue;
+            var hasOptions = !string.IsNullOrEmpty(request.Size) || request.Count.HasValue;
             var dto = new CreateAIJobRequest
             {
                 Capability = AndXContract.AICapabilities.ImageGenerate,
                 Prompt = request.Prompt,
                 ExhibitId = string.IsNullOrEmpty(exhibitId) ? null : exhibitId,
                 Input = request.Input,
-                Options = hasOptions ? new AIImageOptions { Size = request.Size, N = request.N } : null,
+                Options = hasOptions ? new AIImageOptions { Size = request.Size, Count = request.Count } : null,
                 IdemKey = request.IdemKey,
             };
             var data = await Config.Api
@@ -57,7 +63,7 @@ namespace AndX
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "jobNo 不能为空");
             }
-            return Config.Api.GetAsync<AIJob>(AndXContract.Paths.AIJob(jobNo), cancellationToken);
+            return Config.Api.GetAsync<AIJob>(AndXContract.Paths.AIJobPath(jobNo), cancellationToken);
         }
 
         /// <summary>取消任务（仅 PENDING 生效；返回取消后的任务视图）。</summary>
@@ -67,11 +73,11 @@ namespace AndX
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "jobNo 不能为空");
             }
-            return Config.Api.PostAsync<AIJob>(AndXContract.Paths.AIJobCancel(jobNo), null, cancellationToken);
+            return Config.Api.PostAsync<AIJob>(AndXContract.Paths.AIJobCancelPath(jobNo), null, cancellationToken);
         }
 
         /// <summary>
-        /// 轮询直到任务进入终态或超时；返回最后一次观测到的任务（超时可能仍为 PENDING/RUNNING）。
+        /// 轮询直到任务进入终态；到终态返回结果，超时抛 <c>TIMEOUT</c>，取消抛 <c>CANCELED</c>。
         /// </summary>
         public static async Task<AIJob> WaitForJobAsync(
             string jobNo,
@@ -91,8 +97,14 @@ namespace AndX
 
             var job = await GetJobAsync(jobNo, cancellationToken).ConfigureAwait(false);
             progress?.Report(job);
-            while (!job.IsTerminal && DateTime.UtcNow < deadline)
+            while (!job.IsTerminal)
             {
+                if (DateTime.UtcNow >= deadline)
+                {
+                    throw new AndXException(
+                        AndXContract.SdkErrorCodes.Timeout,
+                        $"AI 任务 {jobNo} 等待超时（当前状态 {job.Status}）");
+                }
                 try
                 {
                     await Task.Delay(interval, cancellationToken).ConfigureAwait(false);
@@ -107,8 +119,18 @@ namespace AndX
             return job;
         }
 
+        /// <summary>一步生图（最小参数）：仅需提示词。</summary>
+        public static Task<AIJob> GenerateImageAsync(
+            string prompt,
+            AIWaitOptions waitOptions = null,
+            IProgress<AIJob> progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            return GenerateImageAsync(new AIImageRequest { Prompt = prompt }, waitOptions, progress, cancellationToken);
+        }
+
         /// <summary>
-        /// 一步生图：提交 + 轮询等待，返回终态任务。成功时用 <c>job.MediaId</c> / <c>job.Urls</c>。
+        /// 一步生图：提交 + 轮询等待，返回终态任务。成功时用 <c>job.MediaId</c> / <c>job.ResultUrls</c>。
         /// 参数最小化：仅 <see cref="AIImageRequest.Prompt"/> 必填，其余可省（展项取全局默认）。
         /// </summary>
         public static async Task<AIJob> GenerateImageAsync(

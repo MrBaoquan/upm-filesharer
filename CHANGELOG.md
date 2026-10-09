@@ -22,8 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`AndX.AI` 能力域**：AI 生成任务提交与轮询。`AI.GetCapabilitiesAsync()`、`AI.CreateImageJobAsync(AIImageRequest)`、`AI.GetJobAsync(jobNo)`、`AI.CancelJobAsync(jobNo)`、`AI.WaitForJobAsync(jobNo, AIWaitOptions)`、`AI.GenerateImageAsync(AIImageRequest, ...)`（提交+等待一步到位）。经 AndXEdge 透明转发，端侧不接触 AI 供应商密钥、不参与定价；成功产物 `AIJob.MediaId` 可直接复用分享/二维码/下载/付费链路。
-- `AIJob` / `AICapabilitiesResult` / `AICapabilityInfo` / `AIImageRequest` / `AIWaitOptions` 等对外模型；`AIJob.IsTerminal` 便捷判定。
+- **`AndX.AI` 能力域**：AI 生成任务提交与轮询。`AI.GetCapabilitiesAsync()`、`AI.CreateImageJobAsync(prompt|AIImageRequest)`、`AI.GetJobAsync(jobNo)`、`AI.CancelJobAsync(jobNo)`、`AI.WaitForJobAsync(jobNo, AIWaitOptions)`、`AI.GenerateImageAsync(prompt|AIImageRequest, ...)`（提交+等待一步到位）。经 AndXEdge 透明转发，端侧不接触 AI 供应商密钥、不参与定价；成功产物 `AIJob.MediaId` 可直接复用分享/二维码/下载/付费链路。`WaitForJobAsync` 到终态返回结果，超时抛 `TIMEOUT`、取消抛 `CANCELED`。
+- `AIJob` / `AICapabilitiesResult` / `AICapability` / `AIImageRequest` / `AIWaitOptions` 等对外模型；`AIJob.IsTerminal` 便捷判定。
 - 契约同步（`andx-sdk-spec` → `AndXContract`）：AI 能力标识、任务状态机、接口路径（`/api/ai/capabilities`、`/api/ai/jobs`）与 4 个 AI 错误码；契约版本 `1.0` → `1.1`（新增 AI 能力域，向后兼容）。
 - `AndX.Config.IsConfigured` / `AndX.Config.Reset()`。
 - `AndXContract.Defaults`（`LocalEdgeEndpoint` / `LocalEdgePort`）：本机 AndXEdge 默认基址常量。

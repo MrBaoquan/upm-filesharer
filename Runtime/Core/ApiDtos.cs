@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 
@@ -79,6 +80,9 @@ namespace AndX.Core
     internal sealed class AIImageOptions
     {
         public string Size { get; set; }
-        public int? N { get; set; }
+
+        /// <summary>生成数量（线格式字段名固定为 n）。</summary>
+        [JsonProperty("n")]
+        public int? Count { get; set; }
     }
 }

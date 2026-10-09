@@ -87,19 +87,23 @@ AndX.Config.Init(new AndXOptions { Endpoint = "http://127.0.0.1:6699", ExhibitId
 // 能力可用性（网关未配置时 Available=false 并回显 Reason，不抛错）
 AICapabilitiesResult caps = await AndX.AI.GetCapabilitiesAsync();
 
-// 一步生图：提交 + 轮询，成功后用 MediaId 复用分享 / 二维码 / 下载 / 付费链路
-AIJob job = await AndX.AI.GenerateImageAsync(
-    new AIImageRequest { Prompt = "赛博朋克城市夜景", Size = "1024x1024" },
-    progress: j => Debug.Log($"[AndX.AI] {j.Status}"));
+// 一步生图：给出提示词即可（提交 + 轮询），成功后用 MediaId 复用分享 / 二维码 / 下载 / 付费链路
+AIJob job = await AndX.AI.GenerateImageAsync("赛博朋克城市夜景");
 if (job.Status == AndXContract.AIJobStatuses.Succeeded)
 {
     IssuedTicket ticket = await AndX.Share.IssueResourceTicketAsync(job.MediaId);
 }
+
+// 需要更多控制时用对象重载（尺寸 / 数量 / 幂等键 / 参考图 / 进度）
+AIJob styled = await AndX.AI.GenerateImageAsync(
+    new AIImageRequest { Prompt = "赛博朋克城市夜景", Size = "1024x1024" },
+    progress: j => Debug.Log($"[AndX.AI] {j.Status}"));
 ```
 
 > 异步用法：`CreateImageJobAsync` 提交拿 `jobNo`，再 `GetJobAsync` / `WaitForJobAsync` 轮询，`CancelJobAsync` 取消（仅 `PENDING` 生效）。
 > 端侧只传 `prompt`（+ 可选尺寸/数量/参考图 `input`），AI 供应商密钥只在服务端聚合网关，端侧不接触、不参与定价。
 > 同参可用 `AIImageRequest.IdemKey` 幂等复用成功结果；`AIJob.IsTerminal` 判断是否已结束。
+> `WaitForJobAsync` 到终态返回结果，超时抛 `TIMEOUT`、取消抛 `CANCELED`。
 
 ## 错误处理
 

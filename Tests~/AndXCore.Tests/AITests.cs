@@ -54,7 +54,7 @@ namespace AndX.Tests
                 Prompt = "熊猫",
                 ExhibitId = "1024",
                 Size = "1024x1024",
-                N = 1,
+                Count = 1,
                 IdemKey = "k1",
             });
 
@@ -71,6 +71,7 @@ namespace AndX.Tests
             Assert.Contains("\"prompt\":\"熊猫\"", r.Body);
             Assert.Contains("\"exhibitId\":\"1024\"", r.Body);
             Assert.Contains("\"size\":\"1024x1024\"", r.Body);
+            Assert.Contains("\"n\":1", r.Body);
             Assert.Contains("\"idemKey\":\"k1\"", r.Body);
         }
 
@@ -125,7 +126,7 @@ namespace AndX.Tests
             Assert.Equal(AndXContract.AIJobStatuses.Succeeded, job.Status);
             Assert.Equal("88123", job.MediaId);
             Assert.Equal(new[] { "88123" }, job.MediaIds);
-            Assert.Equal("https://minio/x?sig=1", job.Urls.Single());
+            Assert.Equal("https://minio/x?sig=1", job.ResultUrls.Single());
             Assert.True(job.IsTerminal);
 
             var r = transport.Requests.Single();
@@ -179,18 +180,36 @@ namespace AndX.Tests
         }
 
         [Fact]
-        public async Task WaitForJob_times_out_returning_last_state()
+        public async Task WaitForJob_throws_timeout_when_not_terminal()
         {
             var transport = new FakeTransport((req, i) => FakeResponse.Ok(
                 "{\"jobNo\":\"aj_1\",\"status\":\"RUNNING\"}"));
             Configure(transport);
 
-            var job = await AI.WaitForJobAsync(
+            var ex = await Assert.ThrowsAsync<AndXException>(() => AI.WaitForJobAsync(
                 "aj_1",
-                new AIWaitOptions { Timeout = TimeSpan.FromMilliseconds(5), Interval = TimeSpan.FromMilliseconds(1) });
+                new AIWaitOptions { Timeout = TimeSpan.FromMilliseconds(5), Interval = TimeSpan.FromMilliseconds(1) }));
 
-            Assert.Equal(AndXContract.AIJobStatuses.Running, job.Status);
-            Assert.False(job.IsTerminal);
+            Assert.Equal(AndXContract.SdkErrorCodes.Timeout, ex.Code);
+        }
+
+        [Fact]
+        public async Task GenerateImage_accepts_bare_prompt_and_still_submits_body()
+        {
+            var transport = new FakeTransport((req, i) =>
+            {
+                if (req.Method == "POST")
+                {
+                    return FakeResponse.Ok("{\"jobNo\":\"aj_1\",\"status\":\"SUCCEEDED\",\"cached\":false}");
+                }
+                return FakeResponse.Ok("{\"jobNo\":\"aj_1\",\"status\":\"SUCCEEDED\",\"mediaId\":\"9\"}");
+            });
+            Configure(transport);
+
+            var job = await AI.GenerateImageAsync("赛博朋克城市夜景");
+
+            Assert.Equal("9", job.MediaId);
+            Assert.Contains("\"prompt\":\"赛博朋克城市夜景\"", transport.Requests.First().Body);
         }
 
         [Fact]

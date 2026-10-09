@@ -43,13 +43,13 @@ namespace AndX.Core
             public const string AIJobsPath = "/api/ai/jobs";
 
             /// <summary>AI 任务详情路径：/api/ai/jobs/{jobNo}</summary>
-            public static string AIJob(string jobNo)
+            public static string AIJobPath(string jobNo)
             {
                 return AIJobsPath + "/" + jobNo;
             }
 
             /// <summary>AI 任务取消路径：/api/ai/jobs/{jobNo}/cancel</summary>
-            public static string AIJobCancel(string jobNo)
+            public static string AIJobCancelPath(string jobNo)
             {
                 return AIJobsPath + "/" + jobNo + "/cancel";
             }
