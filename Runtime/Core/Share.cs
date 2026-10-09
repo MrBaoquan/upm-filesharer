@@ -51,10 +51,6 @@ namespace AndX
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "payload 不能为空");
             }
             options = options ?? new UploadOptions();
-            if (string.IsNullOrEmpty(options.ExhibitId))
-            {
-                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "UploadOptions.ExhibitId 不能为空");
-            }
             var total = payload.Length;
             if (total <= 0)
             {
@@ -83,7 +79,7 @@ namespace AndX
                 AndXContract.Paths.EdgeUploads,
                 new CreateUploadRequest
                 {
-                    ExhibitId = options.ExhibitId,
+                    ExhibitId = string.IsNullOrEmpty(options.ExhibitId) ? null : options.ExhibitId,
                     MediaType = MediaTypeToWire(mediaType),
                     FileName = payload.FileName,
                     SizeBytes = total,
@@ -241,10 +237,17 @@ namespace AndX
 
         private static string BuildResourceQuery(UploadOptions options, MediaType mediaType, string fileName)
         {
-            return "?exhibitId=" + Uri.EscapeDataString(options.ExhibitId)
-                + "&mediaType=" + MediaTypeToWire(mediaType)
-                + "&fileName=" + Uri.EscapeDataString(fileName ?? "file")
-                + (string.IsNullOrEmpty(options.Title) ? string.Empty : "&title=" + Uri.EscapeDataString(options.Title));
+            var query = "?mediaType=" + MediaTypeToWire(mediaType)
+                + "&fileName=" + Uri.EscapeDataString(fileName ?? "file");
+            if (!string.IsNullOrEmpty(options.ExhibitId))
+            {
+                query += "&exhibitId=" + Uri.EscapeDataString(options.ExhibitId);
+            }
+            if (!string.IsNullOrEmpty(options.Title))
+            {
+                query += "&title=" + Uri.EscapeDataString(options.Title);
+            }
+            return query;
         }
 
         private static async Task<byte[]> ReadAllAsync(Stream stream, long total, CancellationToken cancellationToken)

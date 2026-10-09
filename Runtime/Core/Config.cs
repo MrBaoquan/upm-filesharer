@@ -53,6 +53,15 @@ namespace AndX
             Init(options, null);
         }
 
+        /// <summary>
+        /// 零参数接入：指向本机 AndXEdge 默认基址（<see cref="AndXContract.Defaults.LocalEdgeEndpoint"/>）。
+        /// 鉴权、展项标识与公网地址均由 Edge 代持，调用方无需提供任何密钥。
+        /// </summary>
+        public static void InitLocal()
+        {
+            Init(new AndXOptions { Endpoint = AndXContract.Defaults.LocalEdgeEndpoint });
+        }
+
         /// <summary>显式注入传输实现进行配置（便于测试与自定义实现）。</summary>
         public static void Init(AndXOptions options, IAndXTransport transport)
         {

@@ -2,13 +2,20 @@ using System;
 
 namespace AndX
 {
-    /// <summary>AndX SDK 配置。密钥一律不入包：边缘共享密钥经 <see cref="EdgeKey.FromEnvironment"/> 注入。</summary>
+    /// <summary>AndX SDK 配置。默认经本机 AndXEdge 接入（Edge 代持鉴权），调用方无需提供密钥；<see cref="EdgeKey"/> 仅「绕过 Edge 直连后端」时使用。</summary>
     public sealed class AndXOptions
     {
-        /// <summary>服务端 / 边缘网关基址（含协议，不含尾斜杠），如 https://edge.museum-a.com。</summary>
+        /// <summary>
+        /// 服务端 / 边缘网关基址（含协议，不含尾斜杠）。
+        /// 推荐指向本机 AndXEdge（如 <c>http://127.0.0.1:6699</c>），由 Edge 代持鉴权与公网地址；
+        /// 也可直接指向后端 API（此时需自行提供 <see cref="EdgeKey"/>）。
+        /// </summary>
         public string Endpoint { get; set; }
 
-        /// <summary>边缘网关共享密钥（X-Edge-Key）；仅对 /api/edge/* 生效。</summary>
+        /// <summary>
+        /// 边缘网关共享密钥（X-Edge-Key）；仅对 <c>/api/edge/*</c> 生效。
+        /// <b>仅在绕过 AndXEdge 直连后端时需要</b>——经本机 Edge 时留空，由 Edge 代持与注入。
+        /// </summary>
         public string EdgeKey { get; set; }
 
         /// <summary>登录令牌（可选）：需登录接口（如资源下载授权）会以 <c>Authorization: Bearer</c> 注入。</summary>
@@ -52,7 +59,7 @@ namespace AndX
             {
                 throw new AndXException(Core.AndXContract.SdkErrorCodes.Configuration, "AndXOptions.Endpoint 仅支持 http/https: " + Endpoint);
             }
-            if (uri.Scheme == Uri.UriSchemeHttp && !AllowInsecureHttp)
+            if (uri.Scheme == Uri.UriSchemeHttp && !AllowInsecureHttp && !uri.IsLoopback)
             {
                 throw new AndXException(Core.AndXContract.SdkErrorCodes.Configuration, "Endpoint 使用 http 明文；如确需内网联调请显式设置 AllowInsecureHttp=true");
             }

@@ -9,6 +9,16 @@ namespace AndX.Core
         /// <summary>契约版本，对应 spec <c>ANDX_CONTRACT_VERSION</c>。</summary>
         public const string Version = "1.0";
 
+        /// <summary>端侧默认值（与 AndXEdge 约定一致；变更须先改契约包）。</summary>
+        public static class Defaults
+        {
+            /// <summary>本机 AndXEdge 默认端口（插件与网关共用）。</summary>
+            public const int LocalEdgePort = 6699;
+
+            /// <summary>本机 AndXEdge 默认基址（环回，明文；仅本机可达）。</summary>
+            public const string LocalEdgeEndpoint = "http://127.0.0.1:6699";
+        }
+
         /// <summary>路径前缀与接口路径（均不含站点基址）。</summary>
         public static class Paths
         {

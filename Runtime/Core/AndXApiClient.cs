@@ -34,10 +34,19 @@ namespace AndX.Core
             get { return _baseUrl; }
         }
 
-        /// <summary>把相对路径拼成绝对地址。</summary>
+        /// <summary>把相对路径拼成绝对地址；已是绝对地址（http/https）时原样返回。</summary>
         public string ResolveUrl(string path)
         {
-            var normalized = string.IsNullOrEmpty(path) ? "/" : (path[0] == '/' ? path : "/" + path);
+            if (string.IsNullOrEmpty(path))
+            {
+                return _baseUrl + "/";
+            }
+            if (path.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                return path;
+            }
+            var normalized = path[0] == '/' ? path : "/" + path;
             return _baseUrl + normalized;
         }
 
