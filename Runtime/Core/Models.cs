@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -188,5 +189,107 @@ namespace AndX
         public string Status { get; set; }
         public long Amount { get; set; }
         public System.DateTimeOffset? PayTime { get; set; }
+    }
+
+    /// <summary>AI 能力可用性（单项）。</summary>
+    public sealed class AICapability
+    {
+        /// <summary>能力标识，如 ai.image.generate。</summary>
+        public string Capability { get; set; }
+
+        /// <summary>该能力当前映射的聚合网关模型名。</summary>
+        public string Model { get; set; }
+
+        /// <summary>是否可用（聚合网关未配置时为 false）。</summary>
+        public bool Available { get; set; }
+    }
+
+    /// <summary>AI 能力清单与整体可用性。</summary>
+    public sealed class AICapabilitiesResult
+    {
+        /// <summary>AI 能力整体是否可用（聚合网关已配置）。</summary>
+        public bool Available { get; set; }
+
+        /// <summary>不可用时的原因（可用时为 null）。</summary>
+        public string Reason { get; set; }
+
+        /// <summary>各能力明细。</summary>
+        public System.Collections.Generic.List<AICapability> Capabilities { get; set; }
+    }
+
+    /// <summary>生图任务提交参数（不含密钥、不含定价）。</summary>
+    public sealed class AIImageRequest
+    {
+        /// <summary>提示词（必填）。</summary>
+        public string Prompt { get; set; }
+
+        /// <summary>展项 ID（可选）：缺省用 <see cref="AndXOptions.ExhibitId"/>，都为空则由 Edge / 服务端兜底。</summary>
+        public string ExhibitId { get; set; }
+
+        /// <summary>尺寸（可选），如 1024x1024。</summary>
+        public string Size { get; set; }
+
+        /// <summary>生成数量（1~4，可选；缺省由服务端/模型决定）。</summary>
+        [JsonProperty("n")]
+        public int? Count { get; set; }
+
+        /// <summary>扩展入参（可选，如参考图 mediaId）。</summary>
+        public System.Collections.Generic.IDictionary<string, object> Input { get; set; }
+
+        /// <summary>同参幂等键（可选）：命中成功的同参任务时直接复用结果。</summary>
+        public string IdemKey { get; set; }
+    }
+
+    /// <summary>AI 生成任务。</summary>
+    public sealed class AIJob
+    {
+        public string JobNo { get; set; }
+
+        /// <summary>状态：见 <see cref="AndX.Core.AndXContract.AIJobStatuses"/>。</summary>
+        public string Status { get; set; }
+
+        public string Capability { get; set; }
+
+        /// <summary>聚合网关解析后的供应商/网关标识。</summary>
+        public string Provider { get; set; }
+
+        public string Model { get; set; }
+
+        /// <summary>是否命中同参幂等缓存（仅提交接口返回；查询任务时恒为 false）。</summary>
+        public bool Cached { get; set; }
+
+        /// <summary>成功后登记的首个 media 主键（可直接用于 <c>AndX.Share.ResolveAsync</c> / 出码）。</summary>
+        public string MediaId { get; set; }
+
+        /// <summary>全部结果素材主键。</summary>
+        public System.Collections.Generic.List<string> MediaIds { get; set; }
+
+        /// <summary>结果可下载地址（presigned，仅 SUCCEEDED 时非空）。</summary>
+        [JsonProperty("urls")]
+        public System.Collections.Generic.List<string> ResultUrls { get; set; }
+
+        public string ErrorCode { get; set; }
+
+        public string ErrorMessage { get; set; }
+
+        public System.DateTimeOffset? CreatedAt { get; set; }
+
+        public System.DateTimeOffset? UpdatedAt { get; set; }
+
+        /// <summary>是否终态（SUCCEEDED / FAILED / CANCELED）。</summary>
+        public bool IsTerminal
+        {
+            get { return AndX.Core.AndXContract.AIJobStatuses.IsTerminal(Status); }
+        }
+    }
+
+    /// <summary>轮询等待选项（用于 <c>AndX.AI.WaitForJobAsync</c> / <c>GenerateImageAsync</c>）。</summary>
+    public sealed class AIWaitOptions
+    {
+        /// <summary>最长等待时间（默认 120 秒）。</summary>
+        public System.TimeSpan Timeout { get; set; } = System.TimeSpan.FromSeconds(120);
+
+        /// <summary>轮询间隔（默认 2 秒）。</summary>
+        public System.TimeSpan Interval { get; set; } = System.TimeSpan.FromSeconds(2);
     }
 }

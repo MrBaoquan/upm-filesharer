@@ -6,8 +6,8 @@ namespace AndX.Core
     /// </summary>
     public static class AndXContract
     {
-        /// <summary>契约版本，对应 spec <c>ANDX_CONTRACT_VERSION</c>。</summary>
-        public const string Version = "1.0";
+        /// <summary>契约版本，对应 spec <c>ANDX_CONTRACT_VERSION</c>。1.1 新增 AI 能力域（向后兼容）。</summary>
+        public const string Version = "1.1";
 
         /// <summary>端侧默认值（与 AndXEdge 约定一致；变更须先改契约包）。</summary>
         public static class Defaults
@@ -36,6 +36,24 @@ namespace AndX.Core
             public const string PayOrders = "/api/pay/orders";
             public const string ResourceOrders = "/api/pay/resource-orders";
 
+            /// <summary>AI 能力清单接口（经 Edge 转发，X-Edge-Key）。</summary>
+            public const string AICapabilitiesPath = "/api/ai/capabilities";
+
+            /// <summary>AI 任务提交接口（经 Edge 转发，X-Edge-Key）。</summary>
+            public const string AIJobsPath = "/api/ai/jobs";
+
+            /// <summary>AI 任务详情路径：/api/ai/jobs/{jobNo}</summary>
+            public static string AIJobPath(string jobNo)
+            {
+                return AIJobsPath + "/" + jobNo;
+            }
+
+            /// <summary>AI 任务取消路径：/api/ai/jobs/{jobNo}/cancel</summary>
+            public static string AIJobCancelPath(string jobNo)
+            {
+                return AIJobsPath + "/" + jobNo + "/cancel";
+            }
+
             /// <summary>资源二维码 PNG 路径（相对）：/api/resources/{token}/qrcode.png</summary>
             public static string ResourceQrcode(string token)
             {
@@ -54,6 +72,29 @@ namespace AndX.Core
         {
             public const string ResourceDownload = "RESOURCE_DOWNLOAD";
             public const string ExhibitPay = "EXHIBIT_PAY";
+        }
+
+        /// <summary>AI 能力标识（镜像 spec <c>src/ai.ts</c> 的 <c>AICapability</c>）。</summary>
+        public static class AICapabilities
+        {
+            public const string ImageGenerate = "ai.image.generate";
+            public const string VideoGenerate = "ai.video.generate";
+        }
+
+        /// <summary>AI 任务状态机（镜像 spec <c>AIJobStatus</c>）。</summary>
+        public static class AIJobStatuses
+        {
+            public const string Pending = "PENDING";
+            public const string Running = "RUNNING";
+            public const string Succeeded = "SUCCEEDED";
+            public const string Failed = "FAILED";
+            public const string Canceled = "CANCELED";
+
+            /// <summary>是否终态（不再变化）。</summary>
+            public static bool IsTerminal(string status)
+            {
+                return status == Succeeded || status == Failed || status == Canceled;
+            }
         }
 
         /// <summary>订单业务类型。</summary>
@@ -125,6 +166,11 @@ namespace AndX.Core
 
             public const string PaySessionExpired = "PAY_SESSION_EXPIRED";
             public const string PaySessionNotPayable = "PAY_SESSION_NOT_PAYABLE";
+
+            public const string AIDisabled = "AI_DISABLED";
+            public const string AICapabilityUnsupported = "AI_CAPABILITY_UNSUPPORTED";
+            public const string AIJobNotFound = "AI_JOB_NOT_FOUND";
+            public const string AIProviderError = "AI_PROVIDER_ERROR";
         }
 
         /// <summary>SDK 侧错误码（网络 / 超时 / 取消 / 配置，非服务端返回）。</summary>

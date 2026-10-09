@@ -13,7 +13,7 @@ namespace AndX
         public string Endpoint { get; set; }
 
         /// <summary>
-        /// 边缘网关共享密钥（X-Edge-Key）；仅对 <c>/api/edge/*</c> 生效。
+        /// 边缘网关共享密钥（X-Edge-Key）；对 <c>/api/edge/*</c> 与 <c>/api/ai/*</c> 控制面生效。
         /// <b>仅在绕过 AndXEdge 直连后端时需要</b>——经本机 Edge 时留空，由 Edge 代持与注入。
         /// </summary>
         public string EdgeKey { get; set; }
@@ -26,6 +26,13 @@ namespace AndX
         /// 设置后优先于 <see cref="AccessToken"/>。
         /// </summary>
         public Func<string> AccessTokenProvider { get; set; }
+
+        /// <summary>
+        /// 全局默认展项 ID（可选）：作为 <c>AndX.AI</c> / <c>AndX.Share</c> / <c>AndX.Pay</c>
+        /// 未显式传参时的兜底；调用处的显式值优先。
+        /// 一个 Edge 服务多展项时建议在此配置。服务端会强制校验其归属（规范红线 2）。
+        /// </summary>
+        public string ExhibitId { get; set; }
 
         /// <summary>共享核实现选择。</summary>
         public TransportMode Transport { get; set; } = TransportMode.Auto;

@@ -51,6 +51,7 @@ namespace AndX
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "payload 不能为空");
             }
             options = options ?? new UploadOptions();
+            var exhibitId = Config.ResolveExhibitId(options.ExhibitId);
             var total = payload.Length;
             if (total <= 0)
             {
@@ -66,7 +67,7 @@ namespace AndX
             {
                 try
                 {
-                    return await UploadOneShotAsync(api, payload, options, mediaType, total, progress, cancellationToken)
+                    return await UploadOneShotAsync(api, payload, exhibitId, options.Title, mediaType, total, progress, cancellationToken)
                         .ConfigureAwait(false);
                 }
                 catch (AndXException ex) when (ex.HttpStatus == 413)
@@ -79,7 +80,7 @@ namespace AndX
                 AndXContract.Paths.EdgeUploads,
                 new CreateUploadRequest
                 {
-                    ExhibitId = string.IsNullOrEmpty(options.ExhibitId) ? null : options.ExhibitId,
+                    ExhibitId = string.IsNullOrEmpty(exhibitId) ? null : exhibitId,
                     MediaType = MediaTypeToWire(mediaType),
                     FileName = payload.FileName,
                     SizeBytes = total,
@@ -196,7 +197,8 @@ namespace AndX
         private static async Task<ShareResult> UploadOneShotAsync(
             AndXApiClient api,
             IAndXPayload payload,
-            UploadOptions options,
+            string exhibitId,
+            string title,
             MediaType mediaType,
             long total,
             IProgress<UploadProgress> progress,
@@ -211,7 +213,7 @@ namespace AndX
             var reporter = progress == null
                 ? null
                 : new Progress<long>(sent => progress.Report(new UploadProgress(sent, total)));
-            var path = AndXContract.Paths.EdgeResources + BuildResourceQuery(options, mediaType, payload.FileName);
+            var path = AndXContract.Paths.EdgeResources + BuildResourceQuery(exhibitId, title, mediaType, payload.FileName);
             var data = await api.PostBinaryAsync(path, bytes, reporter, cancellationToken).ConfigureAwait(false);
             var done = data.ToObject<CompleteUploadResponse>(AndXJson.Serializer);
             if (progress != null)
@@ -235,17 +237,17 @@ namespace AndX
             };
         }
 
-        private static string BuildResourceQuery(UploadOptions options, MediaType mediaType, string fileName)
+        private static string BuildResourceQuery(string exhibitId, string title, MediaType mediaType, string fileName)
         {
             var query = "?mediaType=" + MediaTypeToWire(mediaType)
                 + "&fileName=" + Uri.EscapeDataString(fileName ?? "file");
-            if (!string.IsNullOrEmpty(options.ExhibitId))
+            if (!string.IsNullOrEmpty(exhibitId))
             {
-                query += "&exhibitId=" + Uri.EscapeDataString(options.ExhibitId);
+                query += "&exhibitId=" + Uri.EscapeDataString(exhibitId);
             }
-            if (!string.IsNullOrEmpty(options.Title))
+            if (!string.IsNullOrEmpty(title))
             {
-                query += "&title=" + Uri.EscapeDataString(options.Title);
+                query += "&title=" + Uri.EscapeDataString(title);
             }
             return query;
         }

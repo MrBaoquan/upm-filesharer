@@ -102,5 +102,41 @@ namespace AndX.Tests
             Assert.Equal("Authorization", AndXContract.Headers.Authorization);
             Assert.Equal("x-edge-key", AndXContract.Headers.EdgeKey);
         }
+
+        [Fact]
+        public void AI_capabilities_statuses_and_paths_match_spec()
+        {
+            var ai = ReadSpec("src/ai.ts");
+            Assert.Contains("IMAGE_GENERATE: 'ai.image.generate'", ai);
+            Assert.Contains("VIDEO_GENERATE: 'ai.video.generate'", ai);
+            Assert.Contains("capabilities: '/api/ai/capabilities'", ai);
+            Assert.Contains("jobs: '/api/ai/jobs'", ai);
+
+            Assert.Equal("ai.image.generate", AndXContract.AICapabilities.ImageGenerate);
+            Assert.Equal("ai.video.generate", AndXContract.AICapabilities.VideoGenerate);
+
+            Assert.Equal("/api/ai/capabilities", AndXContract.Paths.AICapabilitiesPath);
+            Assert.Equal("/api/ai/jobs", AndXContract.Paths.AIJobsPath);
+            Assert.Equal("/api/ai/jobs/aj_1", AndXContract.Paths.AIJobPath("aj_1"));
+            Assert.Equal("/api/ai/jobs/aj_1/cancel", AndXContract.Paths.AIJobCancelPath("aj_1"));
+
+            foreach (var status in new[]
+            {
+                AndXContract.AIJobStatuses.Pending,
+                AndXContract.AIJobStatuses.Running,
+                AndXContract.AIJobStatuses.Succeeded,
+                AndXContract.AIJobStatuses.Failed,
+                AndXContract.AIJobStatuses.Canceled,
+            })
+            {
+                Assert.Contains(status + ": '" + status + "'", ai);
+            }
+
+            Assert.True(AndXContract.AIJobStatuses.IsTerminal("SUCCEEDED"));
+            Assert.True(AndXContract.AIJobStatuses.IsTerminal("FAILED"));
+            Assert.True(AndXContract.AIJobStatuses.IsTerminal("CANCELED"));
+            Assert.False(AndXContract.AIJobStatuses.IsTerminal("RUNNING"));
+            Assert.False(AndXContract.AIJobStatuses.IsTerminal("PENDING"));
+        }
     }
 }

@@ -141,12 +141,10 @@ namespace AndX.Core
             return request;
         }
 
-        /// <summary>统一注入请求头：边缘密钥（仅 /api/edge/*）与登录令牌（若有）。</summary>
+        /// <summary>统一注入请求头：边缘密钥（/api/edge/* 与 /api/ai/*）与登录令牌（若有）。</summary>
         private void ApplyHeaders(TransportRequest request)
         {
-            if (!string.IsNullOrEmpty(_edgeKey)
-                && request.Url != null
-                && request.Url.IndexOf("/api/edge/", StringComparison.Ordinal) >= 0)
+            if (!string.IsNullOrEmpty(_edgeKey) && RequiresEdgeKey(request.Url))
             {
                 request.Headers[AndXContract.Headers.EdgeKey] = _edgeKey;
             }
@@ -156,6 +154,17 @@ namespace AndX.Core
             {
                 request.Headers[AndXContract.Headers.Authorization] = "Bearer " + token;
             }
+        }
+
+        /// <summary>需要 X-Edge-Key 的控制面路径：边缘上传/票据与 AI 能力（经 Edge 时由 Edge 代持，直连后端时由 SDK 注入）。</summary>
+        private static bool RequiresEdgeKey(string url)
+        {
+            if (string.IsNullOrEmpty(url))
+            {
+                return false;
+            }
+            return url.IndexOf("/api/edge/", StringComparison.Ordinal) >= 0
+                || url.IndexOf("/api/ai/", StringComparison.Ordinal) >= 0;
         }
 
         private async Task<JToken> SendEnvelopeAsync(TransportRequest request, CancellationToken cancellationToken)
