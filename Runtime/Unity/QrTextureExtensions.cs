@@ -16,7 +16,7 @@ namespace AndX.Unity
             return ticket == null ? Task.FromResult<Texture2D>(null) : QrTextureLoader.LoadAsync(ticket.QrImageUrl);
         }
 
-        public static Task<Texture2D> LoadQrTextureAsync(this Pay.PayTicket ticket)
+        public static Task<Texture2D> LoadQrTextureAsync(this PayTicket ticket)
         {
             return ticket == null ? Task.FromResult<Texture2D>(null) : QrTextureLoader.LoadAsync(ticket.QrImageUrl);
         }

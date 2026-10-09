@@ -27,6 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UploadOptions.Amount`（定价不由端侧决定）。
 - 旧示例 API（`FileUploader.ShareTexture2D` / `ShareLocalFile`）。
 
+### Fixed
+
+- 修正 `Runtime/Unity/QrTextureExtensions.cs` 的编译错误：`LoadQrTextureAsync` 误扩展 `Pay.PayTicket`（`Pay` 是静态类，`PayTicket` 实为 `AndX` 顶层类型），改回 `PayTicket`。
+- 补齐 `Runtime/Core`、`Runtime/Unity` 目录及其全部源文件的 `.meta`（此前缺失，导致 Unity 每次导入重新分配 GUID）。
+- 移除无对应代码、且会在每次导入时触发控制台告警的孤儿 `Editor.meta`。
+
 ## [1.1.0] - 2019-02-15
 
 ### Added
