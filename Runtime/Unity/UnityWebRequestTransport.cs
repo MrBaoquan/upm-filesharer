@@ -9,13 +9,61 @@ namespace AndX.Unity
 {
     /// <summary>
     /// UnityWebRequest 传输实现：Windows / Android / WebGL 通吃。
+    /// Unity API 必须在主线程调用，而 core 使用 <c>ConfigureAwait(false)</c> 可能让后续请求落在
+    /// 后台线程（分片上传等多次连续请求必现），故此处把发送编组回主线程。
     /// 不抛网络异常，统一以 <see cref="TransportResponse"/> 返回。
     /// </summary>
     public sealed class UnityWebRequestTransport : IAndXTransport
     {
+        private static SynchronizationContext _mainContext;
+        private static int _mainThreadId;
+
+        /// <summary>由 <c>AndXUnityBootstrap</c> 在主线程登记上下文，用于把请求编组回主线程。</summary>
+        public static void InstallMainThread(SynchronizationContext context)
+        {
+            _mainContext = context;
+            _mainThreadId = Thread.CurrentThread.ManagedThreadId;
+        }
+
+        /// <summary>是否运行在已登记的主线程上。</summary>
+        private static bool OnMainThread
+        {
+            get { return Thread.CurrentThread.ManagedThreadId == _mainThreadId; }
+        }
+
         public Task<TransportResponse> SendAsync(TransportRequest request, CancellationToken cancellationToken)
         {
-            return SendInternal(request, cancellationToken);
+            // 已在主线程（或尚未登记上下文）时直接发送；否则编组回主线程，
+            // 避免 "Create can only be called from the main thread"。
+            if (_mainContext == null || OnMainThread)
+            {
+                return SendInternal(request, cancellationToken);
+            }
+
+            var tcs = new TaskCompletionSource<TransportResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _mainContext.Post(_ =>
+            {
+                SendInternal(request, cancellationToken).ContinueWith(
+                    t =>
+                    {
+                        if (t.IsCanceled)
+                        {
+                            tcs.TrySetCanceled();
+                        }
+                        else if (t.IsFaulted)
+                        {
+                            tcs.TrySetException(t.Exception.InnerExceptions);
+                        }
+                        else
+                        {
+                            tcs.TrySetResult(t.Result);
+                        }
+                    },
+                    CancellationToken.None,
+                    TaskContinuationOptions.ExecuteSynchronously,
+                    TaskScheduler.Default);
+            }, null);
+            return tcs.Task;
         }
 
         private static async Task<TransportResponse> SendInternal(TransportRequest request, CancellationToken cancellationToken)
