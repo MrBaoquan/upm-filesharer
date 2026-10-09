@@ -6,6 +6,7 @@ AndX 展项能力平台 Unity 包。把本地图片/视频上传到 AndX 平台�
 - 最低 Unity：`2020.3`
 - 依赖：`com.unity.nuget.newtonsoft-json`（包已声明，自动拉取）
 - 支持平台：Windows / Android / WebGL
+- 完整使用文档：`docs/usage.md`
 
 ## 安装
 

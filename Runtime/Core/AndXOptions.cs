@@ -13,7 +13,7 @@ namespace AndX
         public string Endpoint { get; set; }
 
         /// <summary>
-        /// 边缘网关共享密钥（X-Edge-Key）；仅对 <c>/api/edge/*</c> 生效。
+        /// 边缘网关共享密钥（X-Edge-Key）；对 <c>/api/edge/*</c> 与 <c>/api/ai/*</c> 控制面生效。
         /// <b>仅在绕过 AndXEdge 直连后端时需要</b>——经本机 Edge 时留空，由 Edge 代持与注入。
         /// </summary>
         public string EdgeKey { get; set; }

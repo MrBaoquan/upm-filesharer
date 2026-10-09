@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AIJob` / `AICapabilitiesResult` / `AICapability` / `AIImageRequest` / `AIWaitOptions` 等对外模型；`AIJob.IsTerminal` 便捷判定。
 - 契约同步（`andx-sdk-spec` → `AndXContract`）：AI 能力标识、任务状态机、接口路径（`/api/ai/capabilities`、`/api/ai/jobs`）与 4 个 AI 错误码；契约版本 `1.0` → `1.1`（新增 AI 能力域，向后兼容）。
 - `AndX.Config.IsConfigured` / `AndX.Config.Reset()`。
+- 独立使用文档 `docs/usage.md`：安装、配置、Share / Pay / AI、二维码与链接、错误码、平台与线程、常见场景、FAQ 与 API 速查（README 保留快速开始并链接）。
 - `AndXContract.Defaults`（`LocalEdgeEndpoint` / `LocalEdgePort`）：本机 AndXEdge 默认基址常量。
 - 登录令牌注入：`AndXOptions.AccessToken` / `AccessTokenProvider`，需登录接口自动带 `Authorization: Bearer`。
 - 重写 `README.md`：安装、快速开始、常见场景、错误处理、平台与线程注意、API 速查。
