@@ -18,6 +18,7 @@ namespace AndX
     {
         private static AndXApiClient _api;
         private static long _chunkSize = 8L * 1024 * 1024;
+        private static string _exhibitId;
 
         /// <summary>是否已完成配置。</summary>
         public static bool IsConfigured
@@ -45,6 +46,18 @@ namespace AndX
         internal static long ChunkSize
         {
             get { return _chunkSize; }
+        }
+
+        /// <summary>全局默认展项 ID（<see cref="AndXOptions.ExhibitId"/>）；空表示由 Edge / 服务端兜底。</summary>
+        internal static string ExhibitId
+        {
+            get { return _exhibitId; }
+        }
+
+        /// <summary>解析展项 ID：显式值优先，其次全局默认；均空返回 null。</summary>
+        internal static string ResolveExhibitId(string explicitId)
+        {
+            return !string.IsNullOrEmpty(explicitId) ? explicitId : _exhibitId;
         }
 
         /// <summary>使用平台适配层注册的默认传输进行配置。</summary>
@@ -79,6 +92,7 @@ namespace AndX
             }
             _api = new AndXApiClient(resolved, options.Endpoint, options.EdgeKey, options.Timeout, options.MaxRetries, BuildTokenProvider(options));
             _chunkSize = options.ChunkSize > 0 ? options.ChunkSize : 8L * 1024 * 1024;
+            _exhibitId = string.IsNullOrEmpty(options.ExhibitId) ? null : options.ExhibitId;
         }
 
         /// <summary>清空配置（测试与场景切换用）。</summary>
@@ -86,6 +100,7 @@ namespace AndX
         {
             _api = null;
             _chunkSize = 8L * 1024 * 1024;
+            _exhibitId = null;
         }
 
         private static Func<string> BuildTokenProvider(AndXOptions options)

@@ -27,6 +27,13 @@ namespace AndX
         /// </summary>
         public Func<string> AccessTokenProvider { get; set; }
 
+        /// <summary>
+        /// 全局默认展项 ID（可选）：作为 <c>AndX.Ai</c> / <c>AndX.Share</c> / <c>AndX.Pay</c>
+        /// 未显式传参时的兜底；调用处的显式值优先。
+        /// 一个 Edge 服务多展项时建议在此配置。服务端会强制校验其归属（规范红线 2）。
+        /// </summary>
+        public string ExhibitId { get; set; }
+
         /// <summary>共享核实现选择。</summary>
         public TransportMode Transport { get; set; } = TransportMode.Auto;
 

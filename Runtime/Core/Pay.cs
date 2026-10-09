@@ -16,14 +16,15 @@ namespace AndX
         public static async Task<PayTicket> CreateTicketAsync(PayTicketOptions options = null, CancellationToken cancellationToken = default)
         {
             options = options ?? new PayTicketOptions();
-            if (string.IsNullOrEmpty(options.ExhibitId))
+            var exhibitId = Config.ResolveExhibitId(options.ExhibitId);
+            if (string.IsNullOrEmpty(exhibitId))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "PayTicketOptions.ExhibitId 不能为空");
             }
             var api = Config.Api;
             var data = await api.PostRawAsync(
                 AndXContract.Paths.EdgeTickets,
-                new IssueTicketRequest { Purpose = AndXContract.Purposes.ExhibitPay, ExhibitId = options.ExhibitId },
+                new IssueTicketRequest { Purpose = AndXContract.Purposes.ExhibitPay, ExhibitId = exhibitId },
                 cancellationToken).ConfigureAwait(false);
             var r = data.ToObject<IssueTicketResponse>(AndXJson.Serializer);
             return new PayTicket

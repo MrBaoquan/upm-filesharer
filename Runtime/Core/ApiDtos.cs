@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace AndX.Core
 {
@@ -61,5 +62,23 @@ namespace AndX.Core
         public string Status { get; set; }
         public long Amount { get; set; }
         public DateTimeOffset? PayTime { get; set; }
+    }
+
+    /// <summary>提交 AI 生成任务入参（线格式；camelCase 由 AndXJson 统一处理）。</summary>
+    internal sealed class CreateAiJobRequest
+    {
+        public string Capability { get; set; }
+        public string Prompt { get; set; }
+        public string ExhibitId { get; set; }
+        public IDictionary<string, object> Input { get; set; }
+        public AiImageOptions Options { get; set; }
+        public string IdemKey { get; set; }
+    }
+
+    /// <summary>生图参数（仅透传，端侧不定价、不选供应商）。</summary>
+    internal sealed class AiImageOptions
+    {
+        public string Size { get; set; }
+        public int? N { get; set; }
     }
 }
