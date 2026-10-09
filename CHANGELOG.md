@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `AndX.Config.IsConfigured` / `AndX.Config.Reset()`。
 - 登录令牌注入：`AndXOptions.AccessToken` / `AccessTokenProvider`，需登录接口自动带 `Authorization: Bearer`。
 - 重写 `README.md`：安装、快速开始、常见场景、错误处理、平台与线程注意、API 速查。
+- 引擎侧测试程序集 `Tests/Editor`（EditMode，12 例）与 `Tests/Runtime`（PlayMode，3 例），覆盖 `Runtime/Unity` 中 dotnet 单测无法验证的部分：`TexturePayload` PNG 编码、`AndXUnityBootstrap` 启动注册、`UnityWebRequestTransport` 网络错误映射、`QrTextureLoader` 空 URL 兜底。
 
 ### Removed
 

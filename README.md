@@ -110,6 +110,11 @@ catch (AndXException e)
 - **WebGL**：强制 `https`；只能使用内存/纹理载荷。
 - **密钥**：`EdgeKey` 只经环境变量注入，切勿写入代码或打进包体。
 
+## 测试
+
+- **Core（纯 C#，可在任意 .NET 环境跑）**：`Tests~/AndXCore.Tests`，`dotnet test Tests~/AndXCore.Tests/AndXCore.Tests.csproj`。只编译 `Runtime/Core`，不需要 Unity。
+- **引擎侧（Unity）**：`Tests/Editor`（EditMode 12 例）+ `Tests/Runtime`（PlayMode 3 例），覆盖 `Runtime/Unity` 里 dotnet 测不到的部分（PNG 编码、启动注册、网络错误映射等）。在 Unity 中打开 **Window > General > Test Runner** 即可运行；嵌入（embedded）安装时测试程序集会被自动发现。
+
 ## API 速查
 
 | 入口 | 方法 |
