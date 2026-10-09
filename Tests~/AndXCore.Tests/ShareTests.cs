@@ -134,12 +134,17 @@ namespace AndX.Tests
         }
 
         [Fact]
-        public async Task Upload_requires_exhibit_id()
+        public async Task Upload_omits_exhibit_id_when_absent()
         {
-            Configure(new FakeTransport((req, i) => FakeResponse.Ok("{}")));
-            var ex = await Assert.ThrowsAsync<AndXException>(
-                () => Share.UploadAsync(new TestPayload(new byte[4]), new UploadOptions()));
-            Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
+            var putUrls = new List<string>();
+            var transport = Router(8, 0, 8, putUrls);
+            Configure(transport);
+
+            await Share.UploadAsync(new TestPayload(new byte[8]), new UploadOptions());
+
+            var request = transport.Requests.Single();
+            Assert.StartsWith("https://edge.example.com/api/edge/resources?", request.Url);
+            Assert.DoesNotContain("exhibitId=", request.Url);
         }
 
         [Fact]

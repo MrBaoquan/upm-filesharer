@@ -32,7 +32,10 @@ namespace AndX
     /// <summary>上传选项。定价不由端侧决定（由服务端/后台配置）。</summary>
     public sealed class UploadOptions
     {
-        /// <summary>展项 ID。</summary>
+        /// <summary>
+        /// 展项 ID（可选）：经本机 AndXEdge 接入时留空，由 Edge / 服务端边缘配置提供；
+        /// 直连后端或一个 Edge 服务多展项时显式传入。
+        /// </summary>
         public string ExhibitId { get; set; }
 
         /// <summary>素材标题（可选）。</summary>
@@ -154,7 +157,10 @@ namespace AndX
     /// <summary>展项付费票据签发选项。</summary>
     public sealed class PayTicketOptions
     {
-        /// <summary>展项 ID。</summary>
+        /// <summary>
+        /// 展项 ID（可选）：经本机 AndXEdge 接入时留空，由 Edge / 服务端边缘配置提供；
+        /// 直连后端或一个 Edge 服务多展项时显式传入。
+        /// </summary>
         public string ExhibitId { get; set; }
     }
 

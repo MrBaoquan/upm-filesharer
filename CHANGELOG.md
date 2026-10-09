@@ -15,13 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - 定价改由服务端/管理后台决定：端侧上传请求与 `UploadOptions` 不再包含定价；`ShareResult.Amount` 等仍为服务端回传。
 - 票据签发去掉裸字符串：`Share.IssueTicketAsync(purpose, ...)` → `Share.IssueResourceTicketAsync(mediaId, ...)`（付费票据由 `AndX.Pay.CreateTicketAsync` 承担）。
 - 空载荷（`Length == 0`）前置为 `CONFIGURATION` 错误，不再发起请求。
+- **接入最小化**：新增 `AndX.Config.InitLocal()` 零参数接入本机 AndXEdge（默认 `http://127.0.0.1:6699`）；`AndXOptions.EdgeKey` / `AccessToken` 降级为「绕过 Edge 直连后端」高级选项，环回地址 http 免显式 `AllowInsecureHttp`。
+- `UploadOptions.ExhibitId` / `PayTicketOptions.ExhibitId` 改为可选：缺省由 Edge / 服务端 `ANDX_EDGE_EXHIBIT_ID` 提供，一个 Edge 服务多展项时才显式传入。
+- `AndXApiClient.ResolveUrl` 对绝对 URL（`http(s)://`）原样透传，仅相对路径才拼接 `Endpoint`。
 
 ### Added
 
 - `AndX.Config.IsConfigured` / `AndX.Config.Reset()`。
+- `AndXContract.Defaults`（`LocalEdgeEndpoint` / `LocalEdgePort`）：本机 AndXEdge 默认基址常量。
 - 登录令牌注入：`AndXOptions.AccessToken` / `AccessTokenProvider`，需登录接口自动带 `Authorization: Bearer`。
 - 重写 `README.md`：安装、快速开始、常见场景、错误处理、平台与线程注意、API 速查。
 - 引擎侧测试程序集 `Tests/Editor`（EditMode，12 例）与 `Tests/Runtime`（PlayMode，3 例），覆盖 `Runtime/Unity` 中 dotnet 单测无法验证的部分：`TexturePayload` PNG 编码、`AndXUnityBootstrap` 启动注册、`UnityWebRequestTransport` 网络错误映射、`QrTextureLoader` 空 URL 兜底。
+- `Tests~/AndXCore.Tests/AssemblyInfo.cs`：Core 单测程序集禁用并行（`Config` 为进程级全局单例，并行会互相覆盖配置）。
 
 ### Removed
 

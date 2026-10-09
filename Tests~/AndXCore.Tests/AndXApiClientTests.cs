@@ -69,5 +69,17 @@ namespace AndX.Tests
             Assert.Equal("https://api.example.com/api/scan/abc", client.ResolveUrl("api/scan/abc"));
             Assert.Equal("https://api.example.com/api/scan/abc", client.ResolveUrl("/api/scan/abc"));
         }
+
+        [Fact]
+        public void ResolveUrl_passes_absolute_urls_through()
+        {
+            var client = Client(new FakeTransport((req, i) => FakeResponse.Ok("{}")));
+            Assert.Equal(
+                "https://cdn.example.com/api/resources/tok/qrcode.png",
+                client.ResolveUrl("https://cdn.example.com/api/resources/tok/qrcode.png"));
+            Assert.Equal(
+                "http://edge.internal/x",
+                client.ResolveUrl("http://edge.internal/x"));
+        }
     }
 }

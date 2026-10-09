@@ -21,20 +21,14 @@ https://github.com/MrBaoquan/upm-filesharer.git
 using AndX;
 using AndX.Unity;
 
-// 1) 一次性配置（进程级）；密钥不入包，走环境变量 ANDX_EDGE_KEY
-AndX.Config.Init(new AndXOptions
-{
-    Endpoint   = "https://edge.museum-a.com", // 服务端 / 边缘网关基址
-    EdgeKey    = EdgeKey.FromEnvironment(),   // 仅 /api/edge/* 需要
-    Timeout    = TimeSpan.FromSeconds(30),
-    MaxRetries = 2,
-    // AccessToken = jwt,                     // 需登录接口（如下载授权）自动带 Authorization: Bearer
-});
+// 1) 零参数接入本机 AndXEdge（鉴权、展项标识、公网地址均由 Edge 代持，插件不持密钥）
+AndX.Config.InitLocal();                       // 默认 http://127.0.0.1:6699
+// 需要时显式指定：AndX.Config.Init(new AndXOptions { Endpoint = "http://127.0.0.1:6699" });
 
-// 2) 上传素材并拿到二维码
+// 2) 上传素材并拿到二维码（exhibitId 可省略）
 ShareResult result = await AndX.Share.UploadAsync(
     new TexturePayload(screenshot),                                        // 或 FilePathPayload / ByteArrayPayload
-    new UploadOptions { ExhibitId = "1024", Title = "展项截图" },
+    new UploadOptions { Title = "展项截图" },
     progress: p => Debug.Log($"[AndX] {p.Percent:P0}"));
 
 // 3) 服务端出图，端侧只下载显示
@@ -42,6 +36,7 @@ DisplayQRCode.texture = await result.LoadQrTextureAsync();
 ```
 
 > 上传对调用方透明：`payload.Length ≤ ChunkSize` 走一次性透传，服务端上限更小时自动回退分片；大文件自动分片续传。
+> **参数最小化**：默认只认本机 Edge（`InitLocal()`）；`EdgeKey` / `AccessToken` 仅「绕过 Edge 直连后端」等高级场景才需要；`exhibitId` 缺省由 Edge / 服务端 `ANDX_EDGE_EXHIBIT_ID` 提供（一个 Edge 服务多展项时才显式传入）。
 > **定价不由端侧决定**：`UploadOptions` 没有价格字段，价格由服务端/管理后台配置。
 
 ## 常见场景
@@ -51,7 +46,7 @@ DisplayQRCode.texture = await result.LoadQrTextureAsync();
 ```csharp
 var result = await AndX.Share.UploadAsync(
     new FilePathPayload(Application.streamingAssetsPath + "/demo.mp4", MediaType.Video),
-    new UploadOptions { ExhibitId = "1024", Title = "宣传片" });
+    new UploadOptions { Title = "宣传片" });
 ```
 > WebGL 无本地文件系统，请用 `ByteArrayPayload` 或 `TexturePayload`；`FilePathPayload` 在 WebGL 运行时会抛配置错误。
 
@@ -77,8 +72,8 @@ if (scan.Entitled)
 // 边缘侧签发资源下载票据（mediaId）
 IssuedTicket ticket = await AndX.Share.IssueResourceTicketAsync(mediaId: "88123");
 
-// 展项付费票据 + 轮询订单
-PayTicket pay = await AndX.Pay.CreateTicketAsync(new PayTicketOptions { ExhibitId = "1024" });
+// 展项付费票据 + 轮询订单（exhibitId 可省略，由 Edge / 服务端边缘配置提供）
+PayTicket pay = await AndX.Pay.CreateTicketAsync(new PayTicketOptions());
 DisplayQRCode.texture = await pay.LoadQrTextureAsync();
 OrderStatusInfo status = await AndX.Pay.QueryOrderAsync(pay.OrderNo);
 ```
@@ -108,7 +103,7 @@ catch (AndXException e)
 - **主线程**：`LoadQrTextureAsync()` 依赖 `UnityWebRequest`，必须在主线程调用。
 - **进度回调线程**：`IProgress` 回调可能不在主线程，回调内请勿直接操作 `UnityEngine.UI`；需要更新 UI 时请派发回主线程（示例中的 `Debug.Log` 是安全的）。
 - **WebGL**：强制 `https`；只能使用内存/纹理载荷。
-- **密钥**：`EdgeKey` 只经环境变量注入，切勿写入代码或打进包体。
+- **密钥**：插件默认不持密钥——鉴权凭据（`EdgeKey`）存于本机 AndXEdge，由 Edge 注入；仅「绕过 Edge 直连后端」时才需 `EdgeKey`，且只经环境变量注入，切勿写入代码或打进包体。
 
 ## 测试
 
@@ -119,7 +114,7 @@ catch (AndXException e)
 
 | 入口 | 方法 |
 |------|------|
-| `AndX.Config` | `Init(AndXOptions)` / `Init(AndXOptions, IAndXTransport)` / `Reset()` / `IsConfigured` |
+| `AndX.Config` | `InitLocal()` / `Init(AndXOptions)` / `Init(AndXOptions, IAndXTransport)` / `Reset()` / `IsConfigured` |
 | `AndX.Share` | `UploadAsync` / `IssueResourceTicketAsync` / `ResolveAsync` / `GetDownloadAsync` / `AbortAsync` / `QrImageUrl` / `GetQrPngAsync` |
 | `AndX.Pay` | `CreateTicketAsync` / `QueryOrderAsync` / `QrImageUrl` / `GetQrPngAsync` |
 | `AndX.Unity` | `TexturePayload` / `FilePathPayload` / `ByteArrayPayload` / `LoadQrTextureAsync()` |

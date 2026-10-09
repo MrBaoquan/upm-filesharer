@@ -42,6 +42,35 @@ namespace AndX.Tests
         }
 
         [Fact]
+        public void Init_allows_plain_http_on_loopback_without_opt_in()
+        {
+            Config.Init(new AndXOptions { Endpoint = "http://127.0.0.1:6699" }, OkTransport());
+            Assert.True(Config.IsConfigured);
+        }
+
+        [Fact]
+        public async Task InitLocal_points_to_loopback_edge()
+        {
+            var transport = OkTransport();
+            var saved = AndXTransportProvider.Factory;
+            AndXTransportProvider.Factory = () => transport;
+            try
+            {
+                Config.InitLocal();
+                Assert.True(Config.IsConfigured);
+
+                await Share.ResolveAsync("tok");
+
+                Assert.StartsWith("http://127.0.0.1:6699/api/scan/tok", transport.Requests.Single().Url);
+            }
+            finally
+            {
+                AndXTransportProvider.Factory = saved;
+                Config.Reset();
+            }
+        }
+
+        [Fact]
         public void Access_before_init_throws_configuration()
         {
             var ex = Assert.Throws<AndXException>(() => Share.QrImageUrl("tok"));
