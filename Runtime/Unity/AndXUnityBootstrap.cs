@@ -1,3 +1,4 @@
+using System.Threading;
 using UnityEngine;
 
 namespace AndX.Unity
@@ -8,6 +9,9 @@ namespace AndX.Unity
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Register()
         {
+            // 登记主线程上下文：core 的 ConfigureAwait(false) 会让后续请求落到后台线程，
+            // 传输层据此把 Unity API 调用编组回主线程。
+            UnityWebRequestTransport.InstallMainThread(SynchronizationContext.Current);
             AndXTransportProvider.Factory = () => new UnityWebRequestTransport();
         }
     }
