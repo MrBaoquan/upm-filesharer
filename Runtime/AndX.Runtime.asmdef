@@ -1,5 +1,6 @@
 {
     "name": "AndX.Runtime",
+    "rootNamespace": "AndX",
     "references": [],
     "includePlatforms": [],
     "excludePlatforms": [],

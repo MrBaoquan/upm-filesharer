@@ -6,11 +6,11 @@
   "unity": "2020.3",
   "documentationUrl": "http://readme.andcrane.com:6875/books/upm/page/d2dde",
   "changelogUrl": "http://upm.andcrane.com:4873/-/web/detail/com.parful.andx",
-  "licensesUrl": "https://example.com/licensing.html",
+  "license": "UNLICENSED",
   "dependencies": {
     "com.unity.nuget.newtonsoft-json": "3.2.1"
   },
- "keywords": [
+  "keywords": [
     "andx",
     "sharer",
     "qrcode",
@@ -22,9 +22,9 @@
   },
   "samples": [
     {
-      "displayName":"AndX Demo",
-      "description":"上传 Texture2D 并显示二维码示例",
-      "path":"Samples~/AndX Demo"
+      "displayName": "AndX Demo",
+      "description": "上传 Texture2D 并显示二维码示例",
+      "path": "Samples~/AndX Demo"
     }
   ]
 }
