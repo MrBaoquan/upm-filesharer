@@ -97,15 +97,30 @@ namespace AndX.Tests
         // ---------- 默认直连 ----------
 
         [Fact]
-        public void Default_mode_is_direct_and_requires_backend_endpoint()
+        public void Default_mode_is_direct_with_cloud_endpoint_when_nothing_configured()
         {
+            UseStore("DEV-DEFAULT", "secret-default");
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
-            UseStore();
 
-            var ex = Assert.Throws<AndXException>(() => Config.InitAuto());
+            Config.InitAuto();
 
-            Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
-            Assert.Contains(AndXEnvironment.EndpointVariable, ex.Message);
+            Assert.Equal(AndXAccessMode.Direct, Config.ActiveMode);
+            Assert.Equal("DEV-DEFAULT", Config.ActiveNodeId);
+            // 未给 Endpoint 也未设 ANDX_ENDPOINT：回退到默认云服务基址（而不是抛错）
+            Assert.StartsWith(AndXContract.Defaults.CloudEndpoint, Pay.QrImageUrl("tok123"));
+            Assert.Contains(AndXContract.Defaults.CloudEndpoint, Config.ResolutionReason);
+        }
+
+        [Fact]
+        public void Direct_mode_prefers_environment_over_cloud_default()
+        {
+            Environment.SetEnvironmentVariable(AndXEnvironment.EndpointVariable, "https://api.env.test");
+            UseStore("DEV-ENV", "secret-env");
+            UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
+
+            Config.InitAuto();
+
+            Assert.StartsWith("https://api.env.test", Pay.QrImageUrl("tok123"));
         }
 
         [Fact]

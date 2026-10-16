@@ -17,6 +17,15 @@ namespace AndX.Core
 
             /// <summary>本机 AndXEdge 默认基址（环回，明文；仅本机可达）。</summary>
             public const string LocalEdgeEndpoint = "http://127.0.0.1:6699";
+
+            /// <summary>
+            /// AndX 云服务默认基址（站点根，含协议）。
+            ///
+            /// **直连模式的默认值**：`AccessMode = Direct` 且未显式给 Endpoint、也没有环境变量
+            /// `ANDX_ENDPOINT` 时用它，使「零参数直连」开箱可用；内网/联调请显式覆盖
+            /// （如 `http://127.0.0.1` 指向本机 dev 栈）。
+            /// </summary>
+            public const string CloudEndpoint = "https://andx.andcrane.com";
         }
 
         /// <summary>路径前缀与接口路径（均不含站点基址）。</summary>

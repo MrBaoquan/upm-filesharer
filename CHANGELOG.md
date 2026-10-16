@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **直连模式默认基址**：新增 `AndXContract.Defaults.CloudEndpoint = "https://andx.andcrane.com"`；`Config.InitAuto` 的直连基址回退顺序为「显式 `AndXOptions.Endpoint` → 环境变量 `ANDX_ENDPOINT` → 默认云服务基址」，因此 `InitAuto()` 在没配任何东西时也能直接连上（不再抛 `CONFIGURATION`），`ResolutionReason` 会写明基址来自哪里。
+- **AI 产物取用（结果图，不止二维码）**：`AIJob.ResultCount` / `ResultUrl` / `ResultUrlAt(index)`；`AndX.AI.GetResultBytesAsync(job | jobNo, index)`（快路径 / 先刷新两条路）、`AndX.AI.SaveResultAsync(job | jobNo, index, filePath)`；Unity 侧 `AndX.Unity.AIResultLoader`（`LoadTextureAsync` 显示纹理、`SaveAsync` 落盘，默认 `persistentDataPath/andx/ai/`）与扩展方法 `job.LoadResultTextureAsync(index)`。**结果图地址是 presigned（10 分钟）**：带 `jobNo` 的重载会先查任务拿新地址——长期展示 / 延迟取图不再依赖 `ResultUrls` 的新鲜度。
+- **示例（AI Image）新增结果图显示**：场景新增 `ResultImage`（RawImage）显示生成的目标图，齿轮菜单提供「显示结果图 / 上一张 / 下一张 / 保存结果图到本地」，并演示「快路径取图失败 → 用 jobNo 刷新重试」。
 - **接入方式（直连 / 经 Edge）成为一等配置**：`AndXAccessMode`（`Direct` 默认 / `Edge` / `Auto`）、`AndXOptions.AccessMode`、`AndX.Config.InitAuto(AndXOptions?)`（按模式解析基址与凭据，结果写回 `Config.ActiveMode` / `ActiveNodeId` / `ResolutionReason` / `Describe()`，可读原因不含任何密钥）、`AndX.Config.InitAutoAsync(...)`（允许用一次性注册令牌完成首启注册）。`Config.InitLocal()` 变为 `InitAuto(AccessMode = Edge)` 的便捷别名，行为不变。
 - **`AndXEnvironment`**（`ANDX_ENDPOINT` / `ANDX_EDGE_ENDPOINT` / `ANDX_ENROLLMENT_TOKEN` / `ANDX_NODE_ID` / `ANDX_ALLOW_INSECURE_HTTP`）与 **`AndXCredentialProvider.StoreFactory`**（平台注入凭据存储；`AndX.Unity` 启动时注册 `persistentDataPath/andx/node-credential.json`）：直连模式不再需要手抄「加载凭据 → 注册 → Init」样板。接入方式（Direct/Edge）**刻意不提供环境变量**，避免残留变量把现场选择悄悄改掉。
 - **节点自省入口**：`AndX.Node.SelfAsync()`（`GET /api/devices/self`：角色 / 绑定展项 / 授权展项集合 / 启用状态 / 密钥提示位）与 `AndX.Node.RecentAuditAsync(limit)`（`GET /api/devices/self/audit`：本节点最近调用 + 服务端**已校验**的展项归属与结果码），使插件侧排障与 Edge 诊断页对称；新增公开模型 `NodeIdentity` / `NodeAuditEntry`。
 - **示例的接入方式可在 Inspector 选择**：每个示例首字段 `accessMode`（`Direct` 默认 / `Edge` / `Auto`）+ `endpoint`（留空读环境变量），统一走 `Config.InitAuto`；`Share And QR` 新增节点自省演示（Play 时自动打印 + 齿轮菜单 `节点自省（我是谁）`）。
 - **插件侧直连 E2E（手动、env-gated）**：`Tests~/AndXCore.Tests/ManualDirectE2ETests.cs` + `HttpTransport.cs`（真实 HTTP 传输，仅供手动 E2E）。`ANDX_E2E=1` 且提供真实节点凭据时，跑通「直连建客户端 → 节点自省 → 真实上传（节点签名 v2 + body 摘要）→ 审计自省」；首次实测（本地 dev 栈）通过：`identity_source=node_hmac`、`exhibit_id` 与节点绑定一致。
-- 引擎门禁脚本 `scripts/unity-sample-gate.ps1`：导入示例前**清空目标目录**——示例改名 / 删文件时上一轮残留副本会与新副本 GUID 撞车（Unity 会静默改写 GUID，表现为场景 missing script）。
+- 引擎门禁脚本 `scripts/unity-sample-gate.ps1`（新增第 4 步「示例场景检查」，检查器 `scripts/unity/SampleSceneCheck.cs`）：逐场景断言「无 missing script、示例组件在、关键引用已挂、目标 UI 元素存在」；导入示例前**清空目标目录**——示例改名 / 删文件时上一轮残留副本会与新副本 GUID 撞车（Unity 会静默改写 GUID，表现为场景 missing script）。
 - **直连后端（节点身份）**：`AndX.Node.EnrollAsync`（一次性注册令牌 → 本机节点密钥，`POST /api/edge/enroll`）、`NodeCredential`、`NodeCredentialStore` / `ICredentialProtector` / `PassthroughCredentialProtector`、`AndX.Unity.NodeCredentialStorage`（`persistentDataPath/andx/node-credential.json`）。服务端据此判定租户/展项并审计到「节点 + 展项」（solution §16.2 / §16.3）。
 - `AndX.Core.DeviceSigner`：节点请求签名（`x-device-id/timestamp/nonce/signature` + 流式端点 `x-device-body-sha256`），签名原文与服务端 `device-crypto.service.ts` 逐字节一致；跨端测试向量见 `Tests~/AndXCore.Tests/NodeIdentityTests.cs`。
 - `AndXContract.Paths.EdgeEnroll` 与 `AndXContract.Headers.Device*` 正式启用（此前只有常量、无实现）。

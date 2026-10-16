@@ -170,7 +170,7 @@ namespace AndX
         /// <summary>
         /// 按 <see cref="AndXOptions.AccessMode"/> 自动接入（**默认 <see cref="AndXAccessMode.Direct"/>：直连 AndX 云服务**）：
         ///
-        /// - <c>Direct</c>：基址取 <see cref="AndXOptions.Endpoint"/>，缺省读环境变量 <c>ANDX_ENDPOINT</c>；
+        /// - <c>Direct</c>：基址按「<see cref="AndXOptions.Endpoint"/> → 环境变量 <c>ANDX_ENDPOINT</c> → 默认云服务基址（<see cref="AndXContract.Defaults.CloudEndpoint"/>）」回退；
         ///   节点身份取 <see cref="AndXOptions.NodeCredential"/>，缺省从本机凭据存储（<see cref="AndXCredentialProvider"/>）加载。
         /// - <c>Edge</c>：基址取 <see cref="AndXOptions.Endpoint"/>，缺省 <c>ANDX_EDGE_ENDPOINT</c> → 环回默认值；
         ///   不下发节点签名（由 Edge 代持）。
@@ -272,14 +272,12 @@ namespace AndX
                 };
             }
 
-            var endpoint = FirstNonEmpty(options.Endpoint, AndXEnvironment.Endpoint);
-            if (endpoint == null)
-            {
-                throw new AndXException(
-                    AndXContract.SdkErrorCodes.Configuration,
-                    "直连模式需要后端基址：请设置 AndXOptions.Endpoint，或配置环境变量 " + AndXEnvironment.EndpointVariable
-                    + "；经本机 Edge 接入请把 AccessMode 设为 Edge");
-            }
+            // 基址三级回退：显式 Endpoint > 环境变量 ANDX_ENDPOINT > 云服务默认基址
+            var explicitEndpoint = FirstNonEmpty(options.Endpoint, AndXEnvironment.Endpoint);
+            var endpoint = explicitEndpoint ?? AndXContract.Defaults.CloudEndpoint;
+            var endpointSource = explicitEndpoint != null
+                ? (string.IsNullOrWhiteSpace(options.Endpoint) ? "环境变量 " + AndXEnvironment.EndpointVariable : "AndXOptions.Endpoint")
+                : "默认云服务基址（可用 AndXOptions.Endpoint 或 " + AndXEnvironment.EndpointVariable + " 覆盖）";
 
             if (credential != null)
             {
@@ -288,7 +286,8 @@ namespace AndX
                     Mode = AndXAccessMode.Direct,
                     Endpoint = endpoint,
                     Credential = credential,
-                    Reason = "直连模式：使用本机节点身份 node=" + credential.NodeId + "（服务端据此判定租户/展项并审计到「节点 + 展项」）",
+                    Reason = "直连模式：" + endpointSource + " → " + endpoint
+                        + "；使用本机节点身份 node=" + credential.NodeId + "（服务端据此判定租户/展项并审计到「节点 + 展项」）",
                 };
             }
 
@@ -307,7 +306,7 @@ namespace AndX
                     Endpoint = endpoint,
                     Credential = null,
                     NeedsEnroll = true,
-                    Reason = "直连模式：用一次性注册令牌完成首启注册",
+                    Reason = "直连模式：" + endpointSource + " → " + endpoint + "；用一次性注册令牌完成首启注册",
                 };
             }
 

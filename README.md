@@ -57,7 +57,7 @@ using AndX;
 using AndX.Unity;
 
 // 1) 接入：默认直连 AndX 云服务（插件持本机节点凭据，服务端审计到「节点 + 展项」）
-AndX.Config.InitAuto(new AndXOptions { Endpoint = "https://api.example.com" });   // 基址也可走环境变量 ANDX_ENDPOINT
+AndX.Config.InitAuto(new AndXOptions { Endpoint = "https://api.example.com" });   // 基址可留空：读 ANDX_ENDPOINT，再缺省用默认云服务基址
 // 或经本机 AndXEdge（Edge 代持鉴权，插件不持密钥）：AndX.Config.InitLocal();
 
 // 2) 上传素材并拿到二维码（exhibitId 可省略）
@@ -119,7 +119,7 @@ foreach (var entry in await AndX.Node.RecentAuditAsync(limit: 20))
 |------|----------|------|
 | **Share And QR** | `Config.InitAuto()` → `Share.UploadAsync` → `LoadQrTextureAsync` 出码（并演示 `Node.SelfAsync` 节点自省） | 场景 `ShareAndQr` |
 | **Scan And Download** | `Share.ResolveAsync`（预览 / 定价 / 是否已购）、`Share.GetDownloadAsync`（下载授权） | 场景 `ScanAndDownload` |
-| **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → 产物出码 | 场景 `AiImage` |
+| **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → **结果图显示（多图切换 / 落盘）** + 产物出码 | 场景 `AiImage` |
 | **Pay Ticket** | `Pay.CreateTicketAsync` 付费票据、`Pay.QueryOrderAsync` 订单状态 | 场景 `PayTicket` |
 
 > **组件参数默认留空 + `autoRunOnStart`，导入 → 打开场景 → 选好接入方式 → Play 就能看到结果。** 每个示例的第一个字段是 `accessMode`（`Direct` 默认直连 / `Edge` 经本机 AndXEdge / `Auto`），`endpoint` 留空时直连读环境变量 `ANDX_ENDPOINT`、Edge 用 `127.0.0.1:6699`：
@@ -168,7 +168,7 @@ DisplayQRCode.texture = await pay.LoadQrTextureAsync();
 OrderStatusInfo status = await AndX.Pay.QueryOrderAsync(pay.OrderNo);
 ```
 
-### AI 生图（经 Edge 转发，端侧不持密钥）
+### AI 生图（端侧不持厂商密钥）+ 产物取用
 
 ```csharp
 // 可选：全局默认展项（一个 Edge 服务多个展项时配置一次；调用处显式值优先）
@@ -181,7 +181,15 @@ AICapabilitiesResult caps = await AndX.AI.GetCapabilitiesAsync();
 AIJob job = await AndX.AI.GenerateImageAsync("赛博朋克城市夜景");
 if (job.Status == AndXContract.AIJobStatuses.Succeeded)
 {
+    // ① 屏幕直接显示目标图（多图用 index 切换；不需要二维码的现场只用这一步）
+    resultImage.texture = await job.LoadResultTextureAsync(0);
+
+    // ② 出码：产物 MediaId 复用分享 / 二维码 / 下载 / 付费链路
     IssuedTicket ticket = await AndX.Share.IssueResourceTicketAsync(job.MediaId);
+    qrDisplay.texture = await ticket.LoadQrTextureAsync();
+
+    // ③ 落盘留存（默认 persistentDataPath/andx/ai/{jobNo}-0.png）
+    string saved = await AIResultLoader.SaveAsync(job, 0);
 }
 
 // 需要更多控制时用对象重载（尺寸 / 数量 / 幂等键 / 参考图 / 进度）
@@ -236,7 +244,7 @@ catch (AndXException e)
 | `AndX.AndXEnvironment` | `Endpoint` / `EdgeEndpoint` / `EnrollmentToken` / `NodeId` / `AllowInsecureHttp` |
 | `AndX.Share` | `UploadAsync` / `IssueResourceTicketAsync` / `ResolveAsync` / `GetDownloadAsync` / `AbortAsync` / `QrImageUrl` / `GetQrPngAsync` |
 | `AndX.Pay` | `CreateTicketAsync` / `QueryOrderAsync` / `QrImageUrl` / `GetQrPngAsync` |
-| `AndX.AI` | `GetCapabilitiesAsync` / `CreateImageJobAsync` / `GetJobAsync` / `CancelJobAsync` / `WaitForJobAsync` / `GenerateImageAsync` |
-| `AndX.Unity` | `TexturePayload` / `FilePathPayload` / `ByteArrayPayload` / `LoadQrTextureAsync()` |
+| `AndX.AI` | `GetCapabilitiesAsync` / `CreateImageJobAsync` / `GetJobAsync` / `CancelJobAsync` / `WaitForJobAsync` / `GenerateImageAsync` / `GetResultBytesAsync` / `SaveResultAsync` |
+| `AndX.Unity` | `TexturePayload` / `FilePathPayload` / `ByteArrayPayload` / `LoadQrTextureAsync()` / `AIResultLoader.LoadTextureAsync` / `AIResultLoader.SaveAsync` / `job.LoadResultTextureAsync()` |
 
 完整接口与平台说明见 AndX 主仓文档 `docs/design/implementation.md` §10。

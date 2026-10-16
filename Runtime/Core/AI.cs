@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using AndX.Core;
@@ -146,6 +147,62 @@ namespace AndX
                 return await GetJobAsync(created.JobNo, cancellationToken).ConfigureAwait(false);
             }
             return await WaitForJobAsync(created.JobNo, waitOptions, progress, cancellationToken).ConfigureAwait(false);
+        }
+        /// <summary>
+        /// 取第 index 张结果图的**原始字节**（快路径：直接用任务对象上已有的 presigned 地址）。
+        /// presigned 链接有效期 10 分钟；不确定新鲜度或已过期时，用 <see cref="GetResultBytesAsync(string, int, CancellationToken)"/>。
+        /// </summary>
+        public static Task<byte[]> GetResultBytesAsync(AIJob job, int index = 0, CancellationToken cancellationToken = default)
+        {
+            var url = job == null ? null : job.ResultUrlAt(index);
+            if (string.IsNullOrEmpty(url))
+            {
+                throw new AndXException(
+                    AndXContract.SdkErrorCodes.Configuration,
+                    "没有第 " + index + " 张结果图：任务 " + (job == null ? "(null)" : job.JobNo + " 状态 " + job.Status)
+                    + "（未 SUCCEEDED 或 index 越界；当前共 " + (job == null ? 0 : job.ResultCount) + " 张）");
+            }
+            return Config.Api.GetBytesAsync(url, cancellationToken);
+        }
+
+        /// <summary>
+        /// 取第 index 张结果图的原始字节（**新鲜路径**：先查任务拿新的 presigned 地址，再下载）。
+        /// 屏幕长期展示、迟到下载、打印前都应走这个重载。
+        /// </summary>
+        public static async Task<byte[]> GetResultBytesAsync(string jobNo, int index = 0, CancellationToken cancellationToken = default)
+        {
+            var job = await GetJobAsync(jobNo, cancellationToken).ConfigureAwait(false);
+            return await GetResultBytesAsync(job, index, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// 把第 index 张结果图写成本地文件（目录不存在时自动创建），返回写入路径。
+        /// 展项现场据此留存原图 / 打印 / 二次加工；目录由调用方给（Unity 侧默认见
+        /// <c>AndX.Unity.AIResultLoader.SaveAsync</c>）。
+        /// </summary>
+        public static async Task<string> SaveResultAsync(AIJob job, int index, string filePath, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                throw new AndXException(
+                    AndXContract.SdkErrorCodes.Configuration,
+                    "filePath 不能为空（Unity 侧可传 Application.persistentDataPath 下的路径）");
+            }
+            var bytes = await GetResultBytesAsync(job, index, cancellationToken).ConfigureAwait(false);
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            File.WriteAllBytes(filePath, bytes);
+            return filePath;
+        }
+
+        /// <summary>同 <see cref="SaveResultAsync(AIJob, int, string, CancellationToken)"/>，但用 jobNo 先刷新任务再下载。</summary>
+        public static async Task<string> SaveResultAsync(string jobNo, int index, string filePath, CancellationToken cancellationToken = default)
+        {
+            var job = await GetJobAsync(jobNo, cancellationToken).ConfigureAwait(false);
+            return await SaveResultAsync(job, index, filePath, cancellationToken).ConfigureAwait(false);
         }
     }
 }

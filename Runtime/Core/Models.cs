@@ -268,6 +268,38 @@ namespace AndX
         [JsonProperty("urls")]
         public System.Collections.Generic.List<string> ResultUrls { get; set; }
 
+        /// <summary>结果数量（以 <see cref="ResultUrls"/> 为准，回退 <see cref="MediaIds"/>）。</summary>
+        public int ResultCount
+        {
+            get
+            {
+                if (ResultUrls != null && ResultUrls.Count > 0)
+                {
+                    return ResultUrls.Count;
+                }
+                return MediaIds == null ? 0 : MediaIds.Count;
+            }
+        }
+
+        /// <summary>
+        /// 第 index 张结果图的可下载地址；越界或尚未出结果时返回 null。
+        /// **presigned 有效期 10 分钟**：展示/下载前若不确定新鲜度，先 <c>AndX.AI.GetJobAsync(jobNo)</c> 刷新。
+        /// </summary>
+        public string ResultUrlAt(int index)
+        {
+            if (ResultUrls == null || index < 0 || index >= ResultUrls.Count)
+            {
+                return null;
+            }
+            return ResultUrls[index];
+        }
+
+        /// <summary>首张结果图地址（<see cref="ResultUrlAt"/> 的 index=0 简写）。</summary>
+        public string ResultUrl
+        {
+            get { return ResultUrlAt(0); }
+        }
+
         public string ErrorCode { get; set; }
 
         public string ErrorMessage { get; set; }

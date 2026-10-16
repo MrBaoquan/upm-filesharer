@@ -57,7 +57,7 @@ Package Manager → 选中 **AndX** → **Samples** → **Import**，导入后�
 |------|----------|------|
 | **Share And QR** | `Config.InitAuto()` → `Share.UploadAsync` → `LoadQrTextureAsync`（并演示 `Node.SelfAsync` 节点自省） | 场景 `ShareAndQr` |
 | **Scan And Download** | `Share.ResolveAsync`（预览 / 定价 / 是否已购）、`Share.GetDownloadAsync`（下载授权） | 场景 `ScanAndDownload` |
-| **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → `Share.IssueResourceTicketAsync` 出码 | 场景 `AiImage` |
+| **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → **结果图显示（多图切换 / 落盘）** + `Share.IssueResourceTicketAsync` 出码 | 场景 `AiImage` |
 | **Pay Ticket** | `Pay.CreateTicketAsync`、`Pay.QueryOrderAsync` | 场景 `PayTicket` |
 
 - 每个示例都是「场景 + 脚本」：导入后打开场景 → 填好接入方式（见下）→ **Play 即出结果**。
@@ -126,7 +126,7 @@ AndX.Config.Reset();                             // 清空（测试与场景切�
 | 属性 | 默认 | 说明 |
 |---|---|---|
 | `AccessMode` | `Direct` | 接入方式：`Direct` 直连后端 / `Edge` 经本机 AndXEdge / `Auto` 自动（有节点凭据则直连，否则走 Edge）。仅 `InitAuto` 读取 |
-| `Endpoint` | `InitAuto` 时可有默认 | 基址（含协议，不含尾斜杠）。直连 = 后端基址（缺省读 `ANDX_ENDPOINT`）；Edge = 本机 Edge 基址（缺省 `127.0.0.1:6699`）；显式 `Init` 时**必填** |
+| `Endpoint` | 直连：`https://andx.andcrane.com` | 基址（含协议，不含尾斜杠）。直连回退顺序：显式值 → 环境变量 `ANDX_ENDPOINT` → **默认云服务基址**；Edge = 本机 Edge 基址（缺省 `127.0.0.1:6699`）；显式 `Init` 时**必填**（不做推断、不读环境） |
 | `NodeCredential` | 自动加载 | 节点身份（每机一把、可单独吊销）。缺省从本机凭据文件加载；**直连模式必须有**，经 Edge 时忽略 |
 | `EnrollmentToken` / `NodeId` | 环境变量 | 只有「首启注册」用：配 `InitAutoAsync` 用一次性令牌换节点密钥（`ANDX_ENROLLMENT_TOKEN` / `ANDX_NODE_ID`） |
 | `EdgeKey` | — | 边缘共享密钥 `X-Edge-Key`；**旧轨**：仅「无节点身份时用共享密钥直连后端」的过渡期需要，新接入请用节点身份 |
@@ -254,6 +254,9 @@ if (job.Status == AndXContract.AIJobStatuses.Succeeded)
 | `WaitForJobAsync(jobNo, waitOptions, progress, ct)` | 轮询到终态；到终态返回，**超时抛 `TIMEOUT`、取消抛 `CANCELED`** |
 | `GenerateImageAsync(string prompt, ...)` | 提交 + 等到终态（最小参数） |
 | `GenerateImageAsync(AIImageRequest, ...)` | 提交 + 等到终态（完整参数） |
+| `GetResultBytesAsync(job \| jobNo, index, ct)` | 取第 index 张结果图的**原始字节**（快路径 / 先刷新两条路） |
+| `SaveResultAsync(job \| jobNo, index, filePath, ct)` | 把第 index 张结果图写成本地文件（目录自动创建） |
+| `AndX.Unity.AIResultLoader.*` | 端侧便捷：显示纹理（`LoadTextureAsync`）与落盘（`SaveAsync`，默认 `persistentDataPath/andx/ai/`） |
 
 ### 7.2 请求参数 AIImageRequest
 
@@ -268,7 +271,9 @@ if (job.Status == AndXContract.AIJobStatuses.Succeeded)
 
 ### 7.3 结果 AIJob
 
-`JobNo` / `Status` / `Capability` / `Provider` / `Model` / `Cached` / `MediaId` / `MediaIds` / `ResultUrls` / `ErrorCode` / `ErrorMessage` / `CreatedAt` / `UpdatedAt`，以及便捷属性 `IsTerminal`（`SUCCEEDED` / `FAILED` / `CANCELED`）。
+`JobNo` / `Status` / `Capability` / `Provider` / `Model` / `Cached` / `MediaId` / `MediaIds` / `ResultUrls` / `ErrorCode` / `ErrorMessage` / `CreatedAt` / `UpdatedAt`；
+便捷成员：`IsTerminal`（`SUCCEEDED` / `FAILED` / `CANCELED`）、`ResultCount`（结果张数，回退 `MediaIds`）、
+`ResultUrl` / `ResultUrlAt(index)`（第 index 张图地址，越界返回 null）。**`ResultUrls` 是 presigned，10 分钟有效**，见 §7.5。
 
 状态机：`PENDING → RUNNING → SUCCEEDED / FAILED`，`PENDING` 可 `CANCELED`（常量见 `AndXContract.AIJobStatuses`）。
 
@@ -305,6 +310,40 @@ AIJob job = await AndX.AI.GenerateImageAsync(new AIImageRequest
 ```
 
 > 视频能力（`ai.video.generate`）为预留，端侧接口后续增量。
+
+### 7.5 取产物：显示目标图 / 多图 / 落盘
+
+产物有**三条互不排斥**的用法：屏幕上直接显示、出码给观众扫码带走、把原图存到本地。
+
+| 用途 | 入口 | 说明 |
+|---|---|---|
+| 屏幕显示目标图 | `resultImage.texture = await job.LoadResultTextureAsync(index)` | Unity 侧扩展方法；多图用 `index` 切换 |
+| 迟到取图 / 长期展示 | `await AIResultLoader.LoadTextureAsync(jobNo, index)` | 先重新查询任务拿**新地址**再下载 |
+| 原始字节（自绘 / 二次处理） | `await AndX.AI.GetResultBytesAsync(job, index)`（快）<br>`await AndX.AI.GetResultBytesAsync(jobNo, index)`（稳） | 返回 PNG 字节 |
+| 落盘留存 / 打印 | `await AIResultLoader.SaveAsync(job, index)`（快）<br>`await AIResultLoader.SaveAsync(jobNo, index)`（稳） | 默认 `persistentDataPath/andx/ai/{jobNo}-{index}.png`；也可传 `directory` / `fileName` |
+| 出码扫码带走 | `await AndX.Share.IssueResourceTicketAsync(job.MediaId)` | 与上面几条**可同时用** |
+
+```csharp
+AIJob job = await AndX.AI.GenerateImageAsync("赛博朋克城市夜景", progress: new Progress<AIJob>(j => Debug.Log(j.Status)));
+
+// ① 屏幕直接显示第 0 张（不需要二维码的现场只用这一步）
+resultImage.texture = await job.LoadResultTextureAsync(0);
+Debug.Log($"共 {job.ResultCount} 张，首张地址={job.ResultUrl}");
+
+// ② 出码：产物 MediaId 直接复用分享链路
+IssuedTicket ticket = await AndX.Share.IssueResourceTicketAsync(job.MediaId);
+qrDisplay.texture = await ticket.LoadQrTextureAsync();
+
+// ③ 落盘（默认 persistentDataPath/andx/ai/{jobNo}-0.png）
+string path = await AIResultLoader.SaveAsync(job, 0);
+```
+
+> ⚠️ **结果图地址是 presigned，有效期 10 分钟**：`job.ResultUrls` 只适合「刚拿到结果就显示」。
+> 屏幕长期展示、延迟点「保存」、隔天复用同一 job 时，请用带 `jobNo` 的重载（或 `GetResultBytesAsync(jobNo, ...)`）
+> ——它们会先 `GetJobAsync` 拿新地址。**`jobNo` 是长期有效的业务键**；拿到 403/404 只说明地址过期，重新查询即可，不必重新生图。
+>
+> 示例 `AI Image` 即按此实现：`ResultImage` 显示目标图（多图可「上一张 / 下一张」）、`DisplayQRCode` 出码、
+> 齿轮菜单提供「显示结果图 / 上一张 / 下一张 / 保存结果图到本地」，并演示了「快路径失败 → 用 `jobNo` 刷新重试」。
 
 ## 8. 二维码与链接
 
@@ -451,6 +490,15 @@ A：分片上传是流式的，进度回调可能在后台线程；不要在回�
 **Q：为什么 `PayTicket.OrderNo` 是 null？**
 A：`/p/` 付费下单链路服务端尚未打通，签发阶段只出票据与二维码；订单号在下单后可得。
 
+**Q：示例里的 `endpoint` 该填什么？**
+A：**留空即可**：直连模式会用默认云服务基址 `https://andx.andcrane.com`；本机联调可填 `http://127.0.0.1`（dev 栈 nginx），或设环境变量 `ANDX_ENDPOINT`（优先级高于默认值、低于 Inspector 显式值）。
+> 注意：Inspector 的改动要 **Ctrl+S 保存场景**才落盘；Play 模式里改的值退出后会回滚。若刚从 Package Manager 重新导入了示例，
+> 请等 Unity 编译/域重载完成后再改（脚本字段集变化期间编辑，保存会把新字段（如 `accessMode` / `endpoint`）覆盖掉）。
+
+**Q：结果图链接能一直用吗？屏幕上想一直显示怎么办？**
+A：`job.ResultUrls` 是 presigned、**10 分钟**有效；长期展示请用 `AIResultLoader.LoadTextureAsync(jobNo, index)`（会先查任务拿新地址），
+或干脆显示后不再重新下载（纹理已在内存里，不受链接过期影响）。详见 §7.5。
+
 **Q：AI 返回“不可用”？**
 A：服务端未配置聚合网关时 `GetCapabilitiesAsync().Available == false` 且带 `Reason`；这是降级而非异常，按 `Reason` 处理或回退人工素材。
 
@@ -467,8 +515,8 @@ A：不能。端侧类型不含价格字段，价格一律由服务端/后台配
 | `AndX.AndXCredentialProvider` | `StoreFactory`（平台注入凭据存储；Unity 侧已默认注册 `persistentDataPath/andx/node-credential.json`） |
 | `AndX.Share` | `UploadAsync` / `IssueResourceTicketAsync` / `ResolveAsync` / `GetDownloadAsync` / `AbortAsync` / `QrImageUrl` / `GetQrPngAsync` |
 | `AndX.Pay` | `CreateTicketAsync` / `QueryOrderAsync` / `QrImageUrl` / `GetQrPngAsync` |
-| `AndX.AI` | `GetCapabilitiesAsync` / `CreateImageJobAsync` / `GetJobAsync` / `CancelJobAsync` / `WaitForJobAsync` / `GenerateImageAsync` |
-| `AndX.Unity` | `TexturePayload` / `FilePathPayload` / `ByteArrayPayload` / `LoadQrTextureAsync()` |
+| `AndX.AI` | `GetCapabilitiesAsync` / `CreateImageJobAsync` / `GetJobAsync` / `CancelJobAsync` / `WaitForJobAsync` / `GenerateImageAsync` / `GetResultBytesAsync` / `SaveResultAsync` |
+| `AndX.Unity` | `TexturePayload` / `FilePathPayload` / `ByteArrayPayload` / `LoadQrTextureAsync()` / `AIResultLoader.LoadTextureAsync` / `AIResultLoader.SaveAsync` / `job.LoadResultTextureAsync()` |
 | `AndX.Core.ShareLink` | `ExtractToken` / `BuildShareUrl` / `PathForPurpose` |
 | `AndX.EdgeKey` | `FromEnvironment()`（旧轨共享密钥） |
 | `AndXContract` | `Version` / `Paths` / `Purposes` / `Headers` / `ErrorCodes` / `SdkErrorCodes` / `AICapabilities` / `AIJobStatuses` / `Defaults` |

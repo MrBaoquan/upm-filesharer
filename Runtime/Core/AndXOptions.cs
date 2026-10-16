@@ -17,7 +17,7 @@ namespace AndX
 
         /// <summary>
         /// 服务端 / 边缘网关基址（含协议，不含尾斜杠）。**含义随 <see cref="AccessMode"/> 变化**：
-        /// 直连 = 后端 API 基址（缺省读环境变量 <c>ANDX_ENDPOINT</c>）；
+        /// 直连 = 后端 API 基址（缺省读环境变量 <c>ANDX_ENDPOINT</c>，再缺省用云服务基址 <c>https://andx.andcrane.com</c>）；
         /// Edge = 本机 AndXEdge 基址（缺省 <c>ANDX_EDGE_ENDPOINT</c> → <c>http://127.0.0.1:6699</c>）。
         /// </summary>
         public string Endpoint { get; set; }

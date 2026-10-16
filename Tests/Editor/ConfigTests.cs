@@ -99,13 +99,18 @@ namespace AndX.Tests
         }
 
         [Test]
-        public void InitAuto_defaults_to_direct_and_requires_backend_endpoint()
+        public void InitAuto_defaults_to_direct_with_cloud_endpoint()
         {
             WithTransport(() =>
             {
-                var ex = Assert.Throws<AndXException>(() => Config.InitAuto());
-                Assert.AreEqual(AndXContract.SdkErrorCodes.Configuration, ex.Code);
-                Assert.IsTrue(ex.Message.Contains(AndXEnvironment.EndpointVariable), ex.Message);
+                // 未给 Endpoint、也没设 ANDX_ENDPOINT：回退到默认云服务基址（而不是抛错）
+                Config.InitAuto(new AndXOptions { NodeCredential = new NodeCredential("DEV-CLOUD", "secret-cloud") });
+
+                Assert.IsTrue(Config.IsConfigured);
+                Assert.AreEqual(AndXAccessMode.Direct, Config.ActiveMode);
+                Assert.AreEqual("DEV-CLOUD", Config.ActiveNodeId);
+                StringAssert.StartsWith(AndXContract.Defaults.CloudEndpoint, Pay.QrImageUrl("tok123"));
+                StringAssert.Contains(AndXContract.Defaults.CloudEndpoint, Config.ResolutionReason);
             });
         }
 
