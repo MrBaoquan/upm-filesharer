@@ -551,6 +551,9 @@ Android 用 `AndroidJavaObject` 调 Keystore（`KeyGenParameterSpec` + `AES/GCM`
 | `NODE_EXHIBIT_FORBIDDEN` | 节点无权代表该展项（Hub 不在授权集合 / 展项机携带了别的展项） | 后台维护授权集合，或修正调用参数 |
 | `VALIDATION_FAILED` | 服务端没定出展项（无绑定且无 env 兜底） | 绑展项或显式传入 |
 
+> ℹ️ 请求体摘要（`x-device-body-sha256`）由插件自动计算并随请求下发，且**纳入签名**；调用方无需关心。
+> 服务端对上传类端点会校验实际字节与摘要一致（不一致返回 `VALIDATION_FAILED`）。
+>
 > ✅ 签名原文（v2）为 `[METHOD, PATH?sortedQuery, TIMESTAMP, NONCE, SHA256(body)]`。
 > **查询串已纳入签名**（按 key 升序、不解码、空值渲染为 `key`、无参数省略 `?`），所以 `/api/edge/resources?...` 里的 `exhibitId/title/fileName` 也被保护：
 > 中间人改写 query 会直接验签失败（`DEVICE_UNAUTHORIZED`）。注意因此**中间层（nginx/网关）不得改写查询串或重排序参数**。

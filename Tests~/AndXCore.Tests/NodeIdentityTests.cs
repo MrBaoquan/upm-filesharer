@@ -145,6 +145,43 @@ namespace AndX.Tests
         }
 
         [Fact]
+        public async Task Control_plane_requests_declare_body_sha256_header()
+        {
+            var transport = new FakeTransport((req, i) => FakeResponse.Ok("{\"available\":true,\"reason\":null,\"capabilities\":[]}"));
+            Configure(transport, Credential());
+
+            await AI.GetCapabilitiesAsync();
+
+            var request = transport.Requests.Single();
+            // 流式端点服务端不缓冲 body：摘要头必须下发，且等于 canonical 里用的那个哈希
+            var declared = request.Headers[AndXContract.Headers.DeviceBodySha256];
+            Assert.Equal(DeviceSigner.Sha256Hex(null), declared);
+
+            var canonical = DeviceSigner.BuildCanonicalFromBodyHash(
+                request.Method,
+                DeviceSigner.BuildSignedPath(request.Url),
+                request.Headers[AndXContract.Headers.DeviceTimestamp],
+                request.Headers[AndXContract.Headers.DeviceNonce],
+                declared);
+            Assert.Equal(DeviceSigner.Sign(Secret, canonical), request.Headers[AndXContract.Headers.DeviceSignature]);
+        }
+
+        [Fact]
+        public void Body_hash_header_does_not_change_canonical_for_same_body()
+        {
+            var body = Encoding.UTF8.GetBytes(TicketBody);
+            var fromBody = DeviceSigner.BuildCanonical("POST", "/api/edge/resources?b=2&a=1", Timestamp, Nonce, body);
+            var fromHash = DeviceSigner.BuildCanonicalFromBodyHash(
+                "POST",
+                "/api/edge/resources?a=1&b=2",
+                Timestamp,
+                Nonce,
+                DeviceSigner.Sha256Hex(body));
+
+            Assert.Equal(fromBody, fromHash);
+        }
+
+        [Fact]
         public async Task Public_requests_are_not_signed()
         {
             var transport = new FakeTransport((req, i) => FakeResponse.Ok("{}"));

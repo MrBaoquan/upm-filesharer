@@ -126,6 +126,9 @@ namespace AndX.Core
             public const string DeviceTimestamp = "x-device-timestamp";
             public const string DeviceNonce = "x-device-nonce";
             public const string DeviceSignature = "x-device-signature";
+
+            /// <summary>流式端点（octet-stream）由客户端提供的 body SHA-256（小写 hex，纳入签名）。</summary>
+            public const string DeviceBodySha256 = "x-device-body-sha256";
         }
 
         /// <summary>服务端业务错误码（镜像 spec src/errors.ts 与 server/src/common/error-codes.ts）。</summary>

@@ -25,6 +25,21 @@ namespace AndX.Core
         /// <summary>组装签名原文（内部对 PATH 做查询串规范化，故传原样 `path?query` 即可）。</summary>
         public static string BuildCanonical(string method, string path, string timestamp, string nonce, byte[] body)
         {
+            return BuildCanonicalFromBodyHash(method, path, timestamp, nonce, Sha256Hex(body));
+        }
+
+        /// <summary>
+        /// 用**外部给定的 body 哈希**组装签名原文（服务端 `buildCanonicalFromBodyHash` 的镜像）。
+        /// 流式端点（octet-stream）服务端不缓冲 body，故客户端在 `x-device-body-sha256` 头下发摘要，
+        /// 两端用同一个值参与签名。
+        /// </summary>
+        public static string BuildCanonicalFromBodyHash(
+            string method,
+            string path,
+            string timestamp,
+            string nonce,
+            string bodyHashHex)
+        {
             return string.Join(
                 "\n",
                 string.IsNullOrEmpty(method) ? "GET" : method.ToUpperInvariant(),
@@ -32,7 +47,7 @@ namespace AndX.Core
                 Canonicalize(path),
                 timestamp ?? string.Empty,
                 nonce ?? string.Empty,
-                Sha256Hex(body));
+                bodyHashHex ?? string.Empty);
         }
 
         /// <summary>请求体 SHA-256（小写 hex；空体为固定空串哈希）。</summary>
@@ -135,8 +150,17 @@ namespace AndX.Core
 
             var timestamp = NowMilliseconds();
             var nonce = NewNonce();
-            var canonical = BuildCanonical(request.Method, BuildSignedPath(request.Url), timestamp, nonce, request.Body);
+            // 流式端点（octet-stream）服务端不缓冲 body：显式下发 body 摘要（已纳入签名），
+            // 服务端据此组装 canonical，并在读取字节时校验一致性（防「换 body 重放」）。
+            var bodyHash = Sha256Hex(request.Body);
+            var canonical = BuildCanonicalFromBodyHash(
+                request.Method,
+                BuildSignedPath(request.Url),
+                timestamp,
+                nonce,
+                bodyHash);
 
+            request.Headers[AndXContract.Headers.DeviceBodySha256] = bodyHash;
             request.Headers[AndXContract.Headers.DeviceId] = credential.NodeId;
             request.Headers[AndXContract.Headers.DeviceTimestamp] = timestamp;
             request.Headers[AndXContract.Headers.DeviceNonce] = nonce;

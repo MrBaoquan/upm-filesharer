@@ -9,7 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed（BREAKING）
 
-- **节点签名升级为 v2（契约 `1.2`）**：签名原文从「路径（不含 query）」改为「**路径 + 规范化查询串**」——`canonical = [METHOD, PATH?sortedQuery, TIMESTAMP, NONCE, SHA256-HEX(body)].join('\n')`；查询串按 key 升序（key 相同按 value 升序）、**不解码**、空值渲染为 `key`、无参数省略 `?`。堵住「中间人改写 query 即换展项」的缺口（`exhibitId` 等归属字段原先不在保护范围内）。**无 query 时行为与 v1 完全一致**，但端侧与服务端必须同版本升级；`AndXContract.Version` 同步为 `1.2`。
+- **节点签名升级为 v2（契约 `1.2`）**：签名原文从「路径（不含 query）」改为「**路径 + 规范化查询串**」——`canonical = [METHOD, PATH?sortedQuery, TIMESTAMP, NONCE, SHA256-HEX(body)].join('\n')`；查询串按 key 升序（key 相同按 value 升序）、**不解码**、空值渲染为 `key`、无参数省略 `?`。堵住「中间人改写 query 即换展项」的缺口（`exhibitId` 等归属字段原先不在保护范围内）。**无 query 时行为与 v1 完全一致**，但端侧与服务端必须同版本升级；### Fixed
+
+- **流式端点签名（E2E 实测发现）**：`POST /api/edge/resources`、`PUT /api/edge/uploads/:id` 的请求体是 `application/octet-stream`，
+  服务端不缓冲 body，原先只能按空体计算签名原文 ⇒ **上传在节点身份下必然 401**。现改为客户端随请求下发
+  `x-device-body-sha256`（body 摘要，**纳入签名**），服务端据此组装 canonical 并校验实际字节（不一致 400 `VALIDATION_FAILED`）；
+  无 body 的请求行为不变，既有跨端测试向量同样不变。
 
 ### Added
 
