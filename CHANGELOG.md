@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **AI 示例改为图生图（换脸/融合）+ 结果图与二维码并行**：参考图取自 `Assets/StreamingAssets/`（默认「人脸.png」「模板.png」，可改），端侧**缩到长边 ≤1280 并转 JPEG** 后内联 base64 提交（示例实测 4.2MB → 326KB，请求体 5.65MB → 436KB）；服务端把参考图透传为厂商 `image` 字段（内网 MinIO 厂商不可达，故不走 URL）。示例新增**分段耗时日志**（读图编码 / 提交 / 生成等待 / 结果图+二维码），并把「显示结果图」与「出码+二维码」改为 `Task.WhenAll` 并行；轮询间隔可配（`pollIntervalMs`，默认 700ms）。
 - **直连模式默认基址**：新增 `AndXContract.Defaults.CloudEndpoint = "https://andx.andcrane.com"`；`Config.InitAuto` 的直连基址回退顺序为「显式 `AndXOptions.Endpoint` → 环境变量 `ANDX_ENDPOINT` → 默认云服务基址」，因此 `InitAuto()` 在没配任何东西时也能直接连上（不再抛 `CONFIGURATION`），`ResolutionReason` 会写明基址来自哪里。
 - **AI 产物取用（结果图，不止二维码）**：`AIJob.ResultCount` / `ResultUrl` / `ResultUrlAt(index)`；`AndX.AI.GetResultBytesAsync(job | jobNo, index)`（快路径 / 先刷新两条路）、`AndX.AI.SaveResultAsync(job | jobNo, index, filePath)`；Unity 侧 `AndX.Unity.AIResultLoader`（`LoadTextureAsync` 显示纹理、`SaveAsync` 落盘，默认 `persistentDataPath/andx/ai/`）与扩展方法 `job.LoadResultTextureAsync(index)`。**结果图地址是 presigned（10 分钟）**：带 `jobNo` 的重载会先查任务拿新地址——长期展示 / 延迟取图不再依赖 `ResultUrls` 的新鲜度。
 - **示例（AI Image）新增结果图显示**：场景新增 `ResultImage`（RawImage）显示生成的目标图，齿轮菜单提供「显示结果图 / 上一张 / 下一张 / 保存结果图到本地」，并演示「快路径取图失败 → 用 jobNo 刷新重试」。
