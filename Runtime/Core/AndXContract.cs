@@ -63,6 +63,9 @@ namespace AndX.Core
             /// <summary>AI 任务提交接口（经 Edge 转发，X-Edge-Key）。</summary>
             public const string AIJobsPath = "/api/ai/jobs";
 
+            /// <summary>AI 单轮文字生成接口（经 Edge 转发，X-Edge-Key；同步返回文本）。</summary>
+            public const string AITextPath = "/api/ai/text";
+
             /// <summary>AI 任务详情路径：/api/ai/jobs/{jobNo}</summary>
             public static string AIJobPath(string jobNo)
             {
@@ -113,6 +116,9 @@ namespace AndX.Core
         {
             public const string ImageGenerate = "ai.image.generate";
             public const string VideoGenerate = "ai.video.generate";
+
+            /// <summary>单轮文字生成（藏头诗 / 解签 / 祝福）：同步返回，不落任务队列。</summary>
+            public const string TextGenerate = "ai.text.generate";
         }
 
         /// <summary>AI 任务状态机（镜像 spec <c>AIJobStatus</c>）。</summary>

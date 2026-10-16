@@ -124,14 +124,18 @@ namespace AndX.Tests
             var ai = ReadSpec("src/ai.ts");
             Assert.Contains("IMAGE_GENERATE: 'ai.image.generate'", ai);
             Assert.Contains("VIDEO_GENERATE: 'ai.video.generate'", ai);
+            Assert.Contains("TEXT_GENERATE: 'ai.text.generate'", ai);
             Assert.Contains("capabilities: '/api/ai/capabilities'", ai);
             Assert.Contains("jobs: '/api/ai/jobs'", ai);
+            Assert.Contains("text: '/api/ai/text'", ai);
 
             Assert.Equal("ai.image.generate", AndXContract.AICapabilities.ImageGenerate);
             Assert.Equal("ai.video.generate", AndXContract.AICapabilities.VideoGenerate);
+            Assert.Equal("ai.text.generate", AndXContract.AICapabilities.TextGenerate);
 
             Assert.Equal("/api/ai/capabilities", AndXContract.Paths.AICapabilitiesPath);
             Assert.Equal("/api/ai/jobs", AndXContract.Paths.AIJobsPath);
+            Assert.Equal("/api/ai/text", AndXContract.Paths.AITextPath);
             Assert.Equal("/api/ai/jobs/aj_1", AndXContract.Paths.AIJobPath("aj_1"));
             Assert.Equal("/api/ai/jobs/aj_1/cancel", AndXContract.Paths.AIJobCancelPath("aj_1"));
 
