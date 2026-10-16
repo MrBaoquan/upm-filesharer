@@ -14,7 +14,8 @@
     "andx",
     "sharer",
     "qrcode",
-    "pay"
+    "pay",
+    "ai"
   ],
   "author": {
     "name": "MrBaoquan",
@@ -23,8 +24,23 @@
   "samples": [
     {
       "displayName": "AndX Demo",
-      "description": "上传 Texture2D 并显示二维码示例",
+      "description": "上传 Texture2D 并显示二维码（含可运行场景 QRCodePreview）",
       "path": "Samples~/AndX Demo"
+    },
+    {
+      "displayName": "Scan And Download",
+      "description": "扫码解析（预览 / 定价 / 是否已购）与下载授权（含可运行场景 ScanAndDownload）",
+      "path": "Samples~/Scan And Download"
+    },
+    {
+      "displayName": "AI Image",
+      "description": "AI 生图任务提交与轮询，产物复用分享链路出码（含可运行场景 AiImage）",
+      "path": "Samples~/AI Image"
+    },
+    {
+      "displayName": "Pay Ticket",
+      "description": "展项付费票据签发与订单状态查询（含可运行场景 PayTicket）",
+      "path": "Samples~/Pay Ticket"
     }
   ]
 }

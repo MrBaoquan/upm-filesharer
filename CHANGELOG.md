@@ -7,28 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed（BREAKING）
-
-- **节点签名升级为 v2（契约 `1.2`）**：签名原文从「路径（不含 query）」改为「**路径 + 规范化查询串**」——`canonical = [METHOD, PATH?sortedQuery, TIMESTAMP, NONCE, SHA256-HEX(body)].join('\n')`；查询串按 key 升序（key 相同按 value 升序）、**不解码**、空值渲染为 `key`、无参数省略 `?`。堵住「中间人改写 query 即换展项」的缺口（`exhibitId` 等归属字段原先不在保护范围内）。**无 query 时行为与 v1 完全一致**，但端侧与服务端必须同版本升级；### Fixed
-
-- **流式端点签名（E2E 实测发现）**：`POST /api/edge/resources`、`PUT /api/edge/uploads/:id` 的请求体是 `application/octet-stream`，
-  服务端不缓冲 body，原先只能按空体计算签名原文 ⇒ **上传在节点身份下必然 401**。现改为客户端随请求下发
-  `x-device-body-sha256`（body 摘要，**纳入签名**），服务端据此组装 canonical 并校验实际字节（不一致 400 `VALIDATION_FAILED`）；
-  无 body 的请求行为不变，既有跨端测试向量同样不变。
-
 ### Added
 
 - **直连后端（节点身份）**：`AndX.Node.EnrollAsync`（一次性注册令牌 → 本机节点密钥，`POST /api/edge/enroll`）、`NodeCredential`、`NodeCredentialStore` / `ICredentialProtector` / `PassthroughCredentialProtector`、`AndX.Unity.NodeCredentialStorage`（`persistentDataPath/andx/node-credential.json`）。服务端据此判定租户/展项并审计到「节点 + 展项」（solution §16.2 / §16.3）。
-- `AndX.Core.DeviceSigner`：节点请求签名（`x-device-id/timestamp/nonce/signature`），签名原文与服务端 `device-crypto.service.ts` 逐字节一致，跨端测试向量见 `Tests~/AndXCore.Tests/NodeIdentityTests.cs`。
+- `AndX.Core.DeviceSigner`：节点请求签名（`x-device-id/timestamp/nonce/signature` + 流式端点 `x-device-body-sha256`），签名原文与服务端 `device-crypto.service.ts` 逐字节一致；跨端测试向量见 `Tests~/AndXCore.Tests/NodeIdentityTests.cs`。
 - `AndXContract.Paths.EdgeEnroll` 与 `AndXContract.Headers.Device*` 正式启用（此前只有常量、无实现）。
-- 文档：`Documentation~/usage.md` 新增 §15「直连后端（节点身份）」——凭据模型、DPAPI/Keystore 注入示例、轮换/吊销、排错速查。
+- **四个示例齐备且随包入库**：`AndX Demo` / `Scan And Download` / `AI Image` / `Pay Ticket` 各含**可运行场景**（`QRCodePreview` / `ScanAndDownload` / `AiImage` / `PayTicket`）与 `autoRunOnStart`（导入后 Play 即可看到结果）；示例资源与场景均带 `.meta`，元数据由 `package.json` 的 `samples` 声明。示例已在真实 Unity 2023.1 工程内通过编译门禁。
+- 文档：`Documentation~/usage.md` 新增 §15「直连后端（节点身份）」（凭据模型、归属链、DPAPI/Keystore 注入示例、轮换/吊销、排错速查），并补充示例章节的场景与触发方式。
 
-### Changed
+### Changed（BREAKING）
 
+- **节点签名升级为 v2（契约 `1.2`）**：签名原文从「路径（不含 query）」改为「**路径 + 规范化查询串**」——`canonical = [METHOD, PATH?sortedQuery, TIMESTAMP, NONCE, SHA256-HEX(body)].join('\n')`；查询串按 key 升序（key 相同按 value 升序）、**不解码**、空值渲染为 `key`、无参数省略 `?`。堵住「中间人改写 query 即换展项」的缺口（`exhibitId` 等归属字段原先不在保护范围内）。**无 query 时行为与 v1 完全一致**，但端侧与服务端必须同版本升级；`AndXContract.Version` 同步为 `1.2`。
 - `AndXOptions.NodeCredential`（新增）优先于 `EdgeKey`：控制面（`/api/edge/*`、`/api/ai/*`、`/api/devices/*`）在存在节点凭据时下发节点签名，不再下发共享密钥。
 - 重试（网络错误 / 5xx）**每次尝试重新签名**：nonce 一次性，复用会被服务端判为 `DEVICE_REPLAY`。
 - `AndX.Pay.CreateTicketAsync` 不再在端侧校验 `ExhibitId` 非空（客户端不抢答展项归属）：省略时由服务端按节点绑定 / Hub 授权集合 / `ANDX_EDGE_EXHIBIT_ID` 裁决。
 
+### Fixed
+
+- **流式端点签名**：`POST /api/edge/resources`、`PUT /api/edge/uploads/:id` 的请求体是 `application/octet-stream`，服务端不缓冲 body，原先只能按空体计算签名原文 ⇒ **上传在节点身份下必然 401**。现改为客户端随请求下发 `x-device-body-sha256`（body 摘要，**纳入签名**），服务端据此组装 canonical 并校验实际字节（不一致 400 `VALIDATION_FAILED`）；无 body 的请求行为不变，既有跨端测试向量同样不变。
 ## [1.1.0] - 2026-10-16
 
 > 本包由 `com.parful.filesharer` 重命名而来。`1.1.0` 是改名后的首个版本，也是首次以 `com.parful.andx` 发布；`1.0.x` 为前身包的发布记录。
