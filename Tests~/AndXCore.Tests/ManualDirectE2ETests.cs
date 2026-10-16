@@ -10,18 +10,20 @@ namespace AndX.Tests
     /// <summary>
     /// **手动**端到端：插件直连真实后端（真实 HTTP + 真实节点 HMAC v2 + 真实审计落库）。
     ///
-    /// 默认跳过（不设 <c>ANDX_E2E=1</c> 时直接返回），避免 CI / 日常 `dotnet test` 依赖外部服务。
+    /// 默认跳过（不设 <c>ANDX_E2E=1</c> 时两个用例都直接返回），避免 CI / 日常 `dotnet test` 依赖外部服务。
     /// 需要以下环境变量（**凭据只经环境变量注入，勿写进仓库**）：
     /// <code>
     /// ANDX_E2E=1
-    /// ANDX_E2E_BASE=http://127.0.0.1            # 站点根（dev 栈 nginx → api 容器）
+    /// ANDX_E2E_BASE=http://127.0.0.1                     # 站点根（dev 栈 nginx → api 容器）
     /// ANDX_E2E_NODE_ID=UPMDEV-xxx
-    /// ANDX_E2E_NODE_SECRET=...                  # 首启注册换来的节点密钥
-    /// ANDX_E2E_EXHIBIT_ID=1                     # 该节点绑定的展项（期望审计落到它头上）
+    /// ANDX_E2E_NODE_SECRET=...                           # 首启注册换来的节点密钥（用例一见）
+    /// ANDX_E2E_CREDENTIAL_FILE=.../andx/node-credential.json  # 用例二：从落盘凭据加载
+    /// ANDX_E2E_EXHIBIT_ID=1                              # 该节点绑定的展项（期望审计落到它头上）
     /// </code>
     ///
     /// 覆盖：① 直连模式建客户端 → ② 节点自省（我是谁 / 绑定展项）→ ③ 真实上传（走签名 + body 摘要）
-    /// → ④ 审计自省：上传那次调用必须记在**该展项**头上且 <c>identity_source=node_hmac</c>。
+    /// → ④ 审计自省：上传那次调用必须记在**该展项**头上且 <c>identity_source=node_hmac</c>；
+    /// ⑤ 另一条用例验证「本机凭据文件」这条与 Unity 运行时一致的加载路径。
     /// </summary>
     public class ManualDirectE2ETests
     {
@@ -98,6 +100,45 @@ namespace AndX.Tests
             {
                 Config.Reset();
                 AndXTransportProvider.Factory = savedFactory;
+            }
+        }
+
+        [Fact]
+        public async Task Direct_mode_loads_credential_from_file_and_passes_node_hmac()
+        {
+            if (!Enabled)
+            {
+                return;   // 未开启：视为跳过
+            }
+
+            var endpoint = Required("ANDX_E2E_BASE");
+            var credentialFile = Required("ANDX_E2E_CREDENTIAL_FILE");
+            var expectedNode = Required("ANDX_E2E_NODE_ID");
+
+            var savedTransport = AndXTransportProvider.Factory;
+            var savedStore = AndXCredentialProvider.StoreFactory;
+            try
+            {
+                AndXTransportProvider.Factory = () => new HttpTransport();
+                // 与 Unity 运行时同一条路径：平台注册的凭据存储
+                // （工程里是 persistentDataPath/andx/node-credential.json）
+                AndXCredentialProvider.StoreFactory = () => new NodeCredentialStore(credentialFile);
+
+                Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Direct, Endpoint = endpoint });
+
+                Assert.Equal(AndXAccessMode.Direct, Config.ActiveMode);
+                Assert.Equal(expectedNode, Config.ActiveNodeId);   // 证明「落盘格式 + 保护器」可用
+                Assert.Contains("node:" + expectedNode, Config.Describe());
+
+                NodeIdentity me = await Node.SelfAsync();
+                Assert.Equal(expectedNode, me.NodeId);
+                Assert.True(me.Enabled);
+            }
+            finally
+            {
+                Config.Reset();
+                AndXTransportProvider.Factory = savedTransport;
+                AndXCredentialProvider.StoreFactory = savedStore;
             }
         }
     }
