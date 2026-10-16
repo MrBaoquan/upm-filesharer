@@ -16,11 +16,10 @@ namespace AndX
         public static async Task<PayTicket> CreateTicketAsync(PayTicketOptions options = null, CancellationToken cancellationToken = default)
         {
             options = options ?? new PayTicketOptions();
+            // 客户端不抢答（solution §16.4）：展项归属由服务端裁决——
+            // 展项机取节点绑定、Hub 取授权集合、旧轨回退 ANDX_EDGE_EXHIBIT_ID；
+            // 端侧一律把请求发出去，由服务端回 VALIDATION_FAILED / NODE_EXHIBIT_REQUIRED。
             var exhibitId = Config.ResolveExhibitId(options.ExhibitId);
-            if (string.IsNullOrEmpty(exhibitId))
-            {
-                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "PayTicketOptions.ExhibitId 不能为空");
-            }
             var api = Config.Api;
             var data = await api.PostRawAsync(
                 AndXContract.Paths.EdgeTickets,

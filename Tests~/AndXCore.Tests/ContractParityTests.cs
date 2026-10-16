@@ -60,6 +60,21 @@ namespace AndX.Tests
         }
 
         [Fact]
+        public void Edge_control_plane_paths_match_spec()
+        {
+            var links = ReadSpec("src/links.ts");
+            Assert.Contains("tickets: '/api/edge/tickets'", links);
+            Assert.Contains("uploads: '/api/edge/uploads'", links);
+            Assert.Contains("resources: '/api/edge/resources'", links);
+            Assert.Contains("enroll: '/api/edge/enroll'", links);
+
+            Assert.Equal("/api/edge/tickets", AndXContract.Paths.EdgeTickets);
+            Assert.Equal("/api/edge/uploads", AndXContract.Paths.EdgeUploads);
+            Assert.Equal("/api/edge/resources", AndXContract.Paths.EdgeResources);
+            Assert.Equal("/api/edge/enroll", AndXContract.Paths.EdgeEnroll);
+        }
+
+        [Fact]
         public void Business_error_codes_match_spec_exactly()
         {
             var spec = ReadSpec("src/errors.ts");

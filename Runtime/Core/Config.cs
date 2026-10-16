@@ -90,7 +90,14 @@ namespace AndX
                     AndXContract.SdkErrorCodes.Configuration,
                     "未注册传输实现：Unity 侧请确保 AndX.Unity 已初始化，或显式传入 IAndXTransport");
             }
-            _api = new AndXApiClient(resolved, options.Endpoint, options.EdgeKey, options.Timeout, options.MaxRetries, BuildTokenProvider(options));
+            _api = new AndXApiClient(
+                resolved,
+                options.Endpoint,
+                options.EdgeKey,
+                options.Timeout,
+                options.MaxRetries,
+                BuildTokenProvider(options),
+                options.NodeCredential);
             _chunkSize = options.ChunkSize > 0 ? options.ChunkSize : 8L * 1024 * 1024;
             _exhibitId = string.IsNullOrEmpty(options.ExhibitId) ? null : options.ExhibitId;
         }

@@ -15,15 +15,24 @@ namespace AndX.Core
         private readonly IAndXTransport _transport;
         private readonly string _baseUrl;
         private readonly string _edgeKey;
+        private readonly NodeCredential _nodeCredential;
         private readonly Func<string> _accessToken;
         private readonly TimeSpan _timeout;
         private readonly int _maxRetries;
 
-        public AndXApiClient(IAndXTransport transport, string baseUrl, string edgeKey, TimeSpan timeout, int maxRetries, Func<string> accessToken = null)
+        public AndXApiClient(
+            IAndXTransport transport,
+            string baseUrl,
+            string edgeKey,
+            TimeSpan timeout,
+            int maxRetries,
+            Func<string> accessToken = null,
+            NodeCredential nodeCredential = null)
         {
             _transport = transport ?? throw new ArgumentNullException(nameof(transport));
             _baseUrl = (baseUrl ?? string.Empty).TrimEnd('/');
             _edgeKey = edgeKey;
+            _nodeCredential = nodeCredential;
             _accessToken = accessToken;
             _timeout = timeout <= TimeSpan.Zero ? TimeSpan.FromSeconds(30) : timeout;
             _maxRetries = maxRetries < 0 ? 0 : maxRetries;
@@ -141,12 +150,21 @@ namespace AndX.Core
             return request;
         }
 
-        /// <summary>统一注入请求头：边缘密钥（/api/edge/* 与 /api/ai/*）与登录令牌（若有）。</summary>
+        /// <summary>
+        /// 统一注入控制面鉴权头与登录令牌：节点身份（HMAC，直连首选）→ 边缘共享密钥（经 Edge / 旧轨）→ 登录令牌。
+        /// </summary>
         private void ApplyHeaders(TransportRequest request)
         {
-            if (!string.IsNullOrEmpty(_edgeKey) && RequiresEdgeKey(request.Url))
+            if (RequiresNodeAuth(request.Url))
             {
-                request.Headers[AndXContract.Headers.EdgeKey] = _edgeKey;
+                if (_nodeCredential != null)
+                {
+                    DeviceSigner.Apply(request, _nodeCredential);
+                }
+                else if (!string.IsNullOrEmpty(_edgeKey))
+                {
+                    request.Headers[AndXContract.Headers.EdgeKey] = _edgeKey;
+                }
             }
 
             var token = _accessToken?.Invoke();
@@ -156,15 +174,19 @@ namespace AndX.Core
             }
         }
 
-        /// <summary>需要 X-Edge-Key 的控制面路径：边缘上传/票据与 AI 能力（经 Edge 时由 Edge 代持，直连后端时由 SDK 注入）。</summary>
-        private static bool RequiresEdgeKey(string url)
+        /// <summary>
+        /// 需要节点/边缘鉴权的控制面路径：边缘上传与票据、AI 能力、节点心跳与状态上报。
+        /// 经 Edge 时由 Edge 代持；直连后端时由 SDK 注入节点签名（solution §16.3）。
+        /// </summary>
+        private static bool RequiresNodeAuth(string url)
         {
             if (string.IsNullOrEmpty(url))
             {
                 return false;
             }
             return url.IndexOf("/api/edge/", StringComparison.Ordinal) >= 0
-                || url.IndexOf("/api/ai/", StringComparison.Ordinal) >= 0;
+                || url.IndexOf("/api/ai/", StringComparison.Ordinal) >= 0
+                || url.IndexOf("/api/devices/", StringComparison.Ordinal) >= 0;
         }
 
         private async Task<JToken> SendEnvelopeAsync(TransportRequest request, CancellationToken cancellationToken)
@@ -178,6 +200,8 @@ namespace AndX.Core
             for (var attempt = 0; ; attempt++)
             {
                 ThrowIfCanceled(cancellationToken);
+                // 每次尝试都重新注入签名头：nonce 一次性，重试复用会被服务端判为 DEVICE_REPLAY
+                ApplyHeaders(request);
 
                 TransportResponse response;
                 try

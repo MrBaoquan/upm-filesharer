@@ -74,6 +74,28 @@ DisplayQRCode.texture = await result.LoadQrTextureAsync();
 > **参数最小化**：默认只认本机 Edge（`InitLocal()`）；`EdgeKey` / `AccessToken` 仅「绕过 Edge 直连后端」等高级场景才需要；`exhibitId` 缺省由 Edge / 服务端 `ANDX_EDGE_EXHIBIT_ID` 提供（一个 Edge 服务多展项时才显式传入）。
 > **定价不由端侧决定**：`UploadOptions` 没有价格字段，价格由服务端/管理后台配置。
 
+## 直连后端（可选，推荐用于内网/可出外网现场）
+
+插件可以**不用 AndXEdge** 直连后端（同一套 API，差异只在 `Endpoint`）：插件持**本机节点凭据**（每台机器一把、可单独吊销），服务端据此判定租户/展项并审计到「节点 + 展项」。
+
+```csharp
+using AndX;
+using AndX.Unity;
+
+const string endpoint = "https://api.example.com";
+var store = NodeCredentialStorage.Create();               // 生产请注入平台保护器（DPAPI / Keystore）
+var credential = store.Load()
+    ?? await AndX.Node.EnrollAsync(endpoint, enrollmentToken: token, nodeId: "DEV-001", store: store);
+
+AndX.Config.Init(new AndXOptions { Endpoint = endpoint, NodeCredential = credential });
+// 之后与经 Edge 完全一致：Share / Pay / AI 调用不变
+```
+
+> - **展项不配凭据、机器才配**：展项机不需要填 `ExhibitId`（服务端按节点绑定裁决，客户端无法冒充展项）；`role=hub` 的中控才必须逐次携带，并由服务端校验**授权展项集合**。
+> - **业务凭据（微信支付 / AI 网关）只在服务端**，端侧永不下发；`EdgeKey` 是旧轨（经 Edge / 过渡期），直连请用 `NodeCredential`。
+> - AndXEdge 仍然保留两类不可替代的现场：① 展项无外网但有局域网出口（`Relay` 透传）；② 多展项共用一个出口（`Hub`）。
+> - 完整步骤、凭据落盘（DPAPI/Keystore 示例）、轮换与排错见 `Documentation~/usage.md` §15「直连后端（节点身份）」。
+
 ## 示例（Samples）
 
 包内示例按能力域分为四个，在 **Window > Package Manager** 里选中 **AndX** → **Samples** → **Import**，
@@ -81,14 +103,17 @@ DisplayQRCode.texture = await result.LoadQrTextureAsync();
 
 | 示例 | 覆盖能力 | 形态 |
 |------|----------|------|
-| **AndX Demo** | `Config.InitLocal()` → `Share.UploadAsync` → `LoadQrTextureAsync` 出码 | 可运行场景 `QRCodePreview` |
-| **Scan And Download** | `Share.ResolveAsync`（预览 / 定价 / 是否已购）、`Share.GetDownloadAsync`（下载授权） | 脚本 |
-| **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → 产物出码 | 脚本 |
-| **Pay Ticket** | `Pay.CreateTicketAsync` 付费票据、`Pay.QueryOrderAsync` 订单状态 | 脚本 |
+| **AndX Demo** | `Config.InitLocal()` → `Share.UploadAsync` → `LoadQrTextureAsync` 出码 | 场景 `QRCodePreview` |
+| **Scan And Download** | `Share.ResolveAsync`（预览 / 定价 / 是否已购）、`Share.GetDownloadAsync`（下载授权） | 场景 `ScanAndDownload` |
+| **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → 产物出码 | 场景 `AiImage` |
+| **Pay Ticket** | `Pay.CreateTicketAsync` 付费票据、`Pay.QueryOrderAsync` 订单状态 | 场景 `PayTicket` |
 
-> 脚本型示例导入后把组件挂到场景任意 GameObject，Play 模式下经 Inspector 齿轮菜单（`ContextMenu`）触发。
-> 示例都按「零配置接入本机 AndXEdge」编写，运行前请先在本机启动 AndXEdge（默认 `http://127.0.0.1:6699`）；
-> 示例资源随包带 `.meta`，导入时 GUID 不变，`QRCodePreview` 场景内的脚本与贴图引用不会丢。
+> **零配置：导入 → 打开场景 → Play 就能看到结果。** 每个示例的组件参数都已按「本机 AndXEdge + 默认展项」填好默认值（`endpoint` / `exhibitId` / `token` 留空即用 Edge 默认），并默认开启 `autoRunOnStart`：
+> `AndX Demo` 自动上传场景里已挂好的示例图并出码；`Scan And Download` 在没配 token 时**自举**一张真实票据（上传运行时生成的示例图）再走「解析 → 预览 → 下载授权」；`AI Image` 自动查一次能力（免费）；`Pay Ticket` 自动签发票据出付费码。
+> 唯一前置条件：本机跑着 AndXEdge（默认 `http://127.0.0.1:6699`，鉴权 / 展项 / 公网地址都由它代持，插件不持密钥）。想手动触发就关掉 `autoRunOnStart`，改用场景按钮或 Inspector 齿轮菜单（`ContextMenu`）。
+> `AI Image` 的生图会消耗服务端配额，因此**不**自动触发（自动跑的只是免费的能力查询）；场景里的 `Status` 文本会回显每一步结果或错误码。
+> 示例资源（含场景）随包带 `.meta`，导入时 GUID 不变，场景内的脚本与贴图引用不会丢。
+> 场景 UI 用 uGUI 内建的 `Text`（不依赖 TextMeshPro），示例不引入包清单之外的依赖。
 
 ## 常见场景
 
@@ -186,7 +211,7 @@ catch (AndXException e)
 ## 测试
 
 - **Core（纯 C#，可在任意 .NET 环境跑）**：`Tests~/AndXCore.Tests`，`dotnet test Tests~/AndXCore.Tests/AndXCore.Tests.csproj`。只编译 `Runtime/Core`，不需要 Unity。
-- **引擎侧（Unity）**：`Tests/Editor`（EditMode 12 例）+ `Tests/Runtime`（PlayMode 3 例），覆盖 `Runtime/Unity` 里 dotnet 测不到的部分（PNG 编码、启动注册、网络错误映射等）。在 Unity 中打开 **Window > General > Test Runner** 即可运行；嵌入（embedded）安装时测试程序集会被自动发现。
+- **引擎侧（Unity）**：`Tests/Editor`（EditMode）与 `Tests/Runtime`（PlayMode），覆盖 `Runtime/Unity` 里 dotnet 测不到的部分（PNG 编码、启动注册、网络错误映射等）。在 Unity 中打开 **Window > General > Test Runner** 即可运行；嵌入（embedded）安装时测试程序集会被自动发现。用例数以 Test Runner 实测为准（不在此处写死数字，避免与实现漂移）。
 
 ## API 速查
 

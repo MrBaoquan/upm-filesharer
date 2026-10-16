@@ -6,8 +6,8 @@ namespace AndX.Core
     /// </summary>
     public static class AndXContract
     {
-        /// <summary>契约版本，对应 spec <c>ANDX_CONTRACT_VERSION</c>。1.1 新增 AI 能力域（向后兼容）。</summary>
-        public const string Version = "1.1";
+        /// <summary>契约版本，对应 spec <c>ANDX_CONTRACT_VERSION</c>。1.1 新增 AI 能力域；1.2 节点签名改 v2（含查询串，破坏性）。</summary>
+        public const string Version = "1.2";
 
         /// <summary>端侧默认值（与 AndXEdge 约定一致；变更须先改契约包）。</summary>
         public static class Defaults
@@ -33,6 +33,9 @@ namespace AndX.Core
             public const string EdgeTickets = "/api/edge/tickets";
             public const string EdgeUploads = "/api/edge/uploads";
             public const string EdgeResources = "/api/edge/resources";
+
+            /// <summary>节点自助注册（唯一免节点鉴权的控制面端点，solution §16.2）。</summary>
+            public const string EdgeEnroll = "/api/edge/enroll";
             public const string PayOrders = "/api/pay/orders";
             public const string ResourceOrders = "/api/pay/resource-orders";
 
@@ -158,6 +161,23 @@ namespace AndX.Core
             public const string EdgeUploadNotFound = "EDGE_UPLOAD_NOT_FOUND";
             public const string EdgeUploadIncomplete = "EDGE_UPLOAD_INCOMPLETE";
 
+            // 展项服务能力（开通 / 门禁）
+            public const string CapabilityNotEnabled = "CAPABILITY_NOT_ENABLED";
+            public const string CapabilityUnknown = "CAPABILITY_UNKNOWN";
+
+            // 节点注册令牌（自助注册 /api/edge/enroll）
+            public const string EnrollmentTokenInvalid = "ENROLLMENT_TOKEN_INVALID";
+            public const string EnrollmentTokenExpired = "ENROLLMENT_TOKEN_EXPIRED";
+            public const string EnrollmentTokenRevoked = "ENROLLMENT_TOKEN_REVOKED";
+            public const string EnrollmentTokenExhausted = "ENROLLMENT_TOKEN_EXHAUSTED";
+
+            // 用量与配额
+            public const string QuotaExceeded = "QUOTA_EXCEEDED";
+            public const string RateLimited = "RATE_LIMITED";
+
+            // 节点身份与展项归属（v0.6 §16：Hub 须显式携带且 ∈ 授权集合）
+            public const string NodeExhibitRequired = "NODE_EXHIBIT_REQUIRED";
+            public const string NodeExhibitForbidden = "NODE_EXHIBIT_FORBIDDEN";
             public const string DeviceUnauthorized = "DEVICE_UNAUTHORIZED";
             public const string DeviceNotFound = "DEVICE_NOT_FOUND";
             public const string DeviceDisabled = "DEVICE_DISABLED";

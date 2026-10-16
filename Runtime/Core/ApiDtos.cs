@@ -65,6 +65,23 @@ namespace AndX.Core
         public DateTimeOffset? PayTime { get; set; }
     }
 
+    /// <summary>节点自助注册入参（POST /api/edge/enroll）。</summary>
+    internal sealed class EnrollRequest
+    {
+        public string Token { get; set; }
+        public string NodeId { get; set; }
+        public string Name { get; set; }
+    }
+
+    /// <summary>节点自助注册响应：<c>secret</c> 仅此一次返回，之后只能轮换。</summary>
+    internal sealed class EnrollResponse
+    {
+        public string NodeId { get; set; }
+        public string Role { get; set; }
+        public string ExhibitId { get; set; }
+        public string Secret { get; set; }
+    }
+
     /// <summary>提交 AI 生成任务入参（线格式；camelCase 由 AndXJson 统一处理）。</summary>
     internal sealed class CreateAIJobRequest
     {

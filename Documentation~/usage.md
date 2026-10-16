@@ -24,6 +24,7 @@
 - [12. FAQ](#12-faq)
 - [13. API 速查](#13-api-速查)
 - [14. 契约与兼容](#14-契约与兼容)
+- [15. 直连后端（节点身份）](#15-直连后端节点身份)
 
 ## 1. 设计原则
 
@@ -55,14 +56,22 @@ Package Manager → 选中 **AndX** → **Samples** → **Import**，导入后�
 
 | 示例 | 覆盖能力 | 形态 |
 |------|----------|------|
-| **AndX Demo** | `Config.InitLocal()` → `Share.UploadAsync` → `LoadQrTextureAsync` | 可运行场景 `QRCodePreview` |
-| **Scan And Download** | `Share.ResolveAsync`（预览 / 定价 / 是否已购）、`Share.GetDownloadAsync`（下载授权） | 脚本 |
-| **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → `Share.IssueResourceTicketAsync` 出码 | 脚本 |
-| **Pay Ticket** | `Pay.CreateTicketAsync`、`Pay.QueryOrderAsync` | 脚本 |
+| **AndX Demo** | `Config.InitLocal()` → `Share.UploadAsync` → `LoadQrTextureAsync` | 场景 `QRCodePreview` |
+| **Scan And Download** | `Share.ResolveAsync`（预览 / 定价 / 是否已购）、`Share.GetDownloadAsync`（下载授权） | 场景 `ScanAndDownload` |
+| **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → `Share.IssueResourceTicketAsync` 出码 | 场景 `AiImage` |
+| **Pay Ticket** | `Pay.CreateTicketAsync`、`Pay.QueryOrderAsync` | 场景 `PayTicket` |
 
-- 脚本型示例：把组件挂到场景任意 GameObject，Play 模式下经 Inspector 的齿轮菜单（`ContextMenu`）触发对应方法。
-- 示例资源随包带 `.meta`，导入时 GUID 保持不变，`QRCodePreview` 场景里的脚本与贴图引用不会丢。
-- 示例一律按「零配置接入本机 AndXEdge」编写，需先在本机启动 AndXEdge（默认 `http://127.0.0.1:6699`）。
+- 每个示例都是「场景 + 脚本」：导入后打开场景 → **Play 即出结果**，无需先改任何 Inspector 参数。
+- 组件参数都带了可用默认值（`endpoint` / `exhibitId` / `token` / `q` 留空即走 Edge / 服务端默认），并默认开启 `autoRunOnStart`，Play 后自动跑一遍主流程：
+  - `AndX Demo`：上传场景里已挂好的 `example.jpg` → 出码到 `RawImage`。
+  - `Scan And Download`：没配 token 时**自举**——上传一张运行时生成的示例图换来真实票据，再走「解析 → 预览 → 下载授权」，完整跑通一码双端链路。
+  - `AI Image`：自动查一次能力（免费，可立刻看出服务端 AI 聚合网关是否可用）。
+  - `Pay Ticket`：自动签发票据并把付费码画到 `RawImage`。
+- `AI Image` 的**生图会消耗服务端配额**，因此不自动触发；点场景里的「生图并出码」按钮或 Inspector 齿轮菜单即可。
+- 想手动控制节奏：把 `autoRunOnStart` 关掉，改用场景按钮（已绑定 `ShareFile` / `Resolve` / `Download` / `GenerateAndShowQr` / `CheckCapabilities` / `CreateTicket` / `QueryOrder`）或 Inspector 齿轮菜单（`ContextMenu`）。状态与错误码统一回显在场景的 `Status` 文本上。
+- 唯一前置条件：本机跑着 **AndXEdge**（默认 `http://127.0.0.1:6699`；鉴权 / 展项标识 / 公网地址都由它代持，插件不持密钥）。
+- 示例资源（含场景）随包带 `.meta`，导入时 GUID 保持不变，场景里的脚本与贴图引用不会丢。
+- 场景 UI 使用 uGUI 内建的 `Text`（不依赖 TextMeshPro），示例不引入包清单之外的依赖。
 - 想直连后端 / 自定义基址：示例 1 的 Inspector 里填 `endpoint` 即可（`EdgeKey` 只从环境变量 `ANDX_EDGE_KEY` 取，不入包）。
 
 ## 3. 快速开始
@@ -437,3 +446,111 @@ A：不能。端侧类型不含价格字段，价格一律由服务端/后台配
 ---
 
 > 更完整的平台设计与实现规格见主仓 `docs/design/solution.md`、`docs/design/implementation.md`。
+
+## 15. 直连后端（节点身份）
+
+**什么时候用**：展项机能直接路由到后端（同局域网内网后端，或能出外网的现场）。此时**不需要 AndXEdge**：
+插件持**本机节点凭据**（每台机器一把、可单独吊销），服务端据此判定租户/展项，并把调用与产物**审计到「节点 + 展项」**。
+AndXEdge 只在两类现场保留价值：① 展项无外网、局域网内有出口（`Relay` 透传）；② 多个展项共用一个出口（`Hub` 多展项）。
+
+> 三条硬约定（solution §16）：
+> 1. **展项不持凭据，机器才持凭据**：一台物理机一条节点身份；"哪个展项要配凭据"这个问法本身不成立——展项维度配的是**授权关系**与**能力开关**。
+> 2. **身份凭据按节点独立，业务凭据按项目共享**：微信支付 / AI 网关密钥只在服务端（配置中心，按项目），端侧**永不**下发。
+> 3. **插件不持共享密钥**：直连只用节点 HMAC；`EdgeKey` 属旧轨（经 Edge / 过渡期），后续版本退役。
+
+### 15.1 首次接入（每台机器一次）
+
+```csharp
+using AndX;
+using AndX.Unity;
+
+const string endpoint = "https://api.example.com";   // 后端基址（不是本机 Edge 时必填）
+
+// 1) 凭据存储（默认落在 persistentDataPath/andx/node-credential.json）
+var store = NodeCredentialStorage.Create(/* 见 15.2：生产请注入平台保护器 */);
+
+// 2) 首启：用运维签发的一次性注册令牌换本机节点密钥（明文只返回一次）
+var credential = store.Load()
+    ?? await AndX.Node.EnrollAsync(endpoint, enrollmentToken: token, nodeId: "DEV-001", name: "1 号展项机", store: store);
+
+// 3) 直连模式：把节点身份交给 Config（不再需要 EdgeKey / 本机 Edge）
+AndX.Config.Init(new AndXOptions { Endpoint = endpoint, NodeCredential = credential });
+
+// 4) 之后与经 Edge 完全一致（同一套 API，差异只在 Endpoint）
+var result = await AndX.Share.UploadAsync(new TexturePayload(screenshot), new UploadOptions { Title = "展项截图" });
+DisplayQRCode.texture = await result.LoadQrTextureAsync();
+```
+
+- 注册令牌由运维在后台签发（`POST /api/admin/enrollment-tokens`，短时效 / 限次数 / 限租户，服务端只存哈希）；
+  展项机令牌可固定展项（`role=exhibit`），中控令牌 `role=hub` 不绑展项。
+- **展项机不需要在插件里配 `ExhibitId`**：服务端按节点绑定裁决（这样客户端无法冒充展项）；
+  只有 `role=hub` 的中控才必须逐次携带，且服务端会校验它是否在**授权展项集合**内（后台
+  `PUT /api/admin/devices/{deviceId}/exhibits` 维护）。
+- 注册**不做自动重试**：令牌一次性，重试可能落在"服务端已消费"之后；失败请让运维重发令牌。
+
+#### 令牌如何决定「项目 / 展项」（归属链）
+
+| 环节 | 归属来自哪里 | 备注 |
+|---|---|---|
+| ① 后台签发令牌 | `tenant_id` + `role` + 可选 `exhibit_id` | **展项机令牌的项目由展项反查**（运维不用手填项目）；中控令牌显式传 `projectId` |
+| ② 首次注册 `/api/edge/enroll` | 服务端按令牌行**落一条节点记录**（`device`） | **租户只取令牌行**（客户端无法声明租户）；展项取令牌固定值（未固定时才允许调用方补，且须属令牌租户）；返回的一次性密钥须立即落盘 |
+| ③ 之后每次调用 | 服务端按请求签名里的 `x-device-id` 查**节点记录** | **令牌不再参与**；租户/展项取自节点；`audit_request`/`media`/`ai_job` 全部写这份"已校验"的值 |
+
+- 一个展项多台机器：签发一张 `maxUses=N` 的令牌（都绑同一展项），或每台一张 `maxUses=1`。
+- 一台机器多展项：**必须用 `role=hub` 令牌**（不绑展项），每次请求显式带 `exhibitId`，并由后台维护的**授权展项集合**放行。
+- 改绑展项/换机器：改的是**节点**（后台改绑定或授权集合、必要时轮换密钥）——令牌是一次性"出生证明"，不能改绑。
+
+> 记忆法：**令牌 = 一次性出生证明（决定登记到哪个项目/展项）；节点记录 = 身份证（之后每次核查）；请求体里的展项 = 只有 Hub 能提的临时申请，且须过授权集合。**
+
+### 15.2 凭据落盘：注入平台保护器
+
+包内默认的 `PassthroughCredentialProtector` **只做 Base64，不提供机密性**，仅供联调（`store.IsEncryptedAtRest == false` 时应视为告警）。
+生产请实现 `ICredentialProtector` 并注入真实平台密钥库：
+
+```csharp
+#if UNITY_STANDALONE_WIN && !UNITY_WEBGL
+// Windows Standalone：DPAPI。注意——ProtectedData 属于 .NET Framework 面，
+// 需把 Player Settings → Api Compatibility Level 设为 ".NET Framework"（.NET Standard 2.0 下该类型不可用），
+// 或改用 NuGet 包 System.Security.Cryptography.ProtectedData。
+using System.Security.Cryptography;
+using System.Text;
+
+public sealed class DpapiProtector : AndX.Core.ICredentialProtector
+{
+    public string Protect(string plaintext) =>
+        Convert.ToBase64String(ProtectedData.Protect(Encoding.UTF8.GetBytes(plaintext), null, DataProtectionScope.CurrentUser));
+
+    public string Unprotect(string protectedValue) =>
+        Encoding.UTF8.GetString(ProtectedData.Unprotect(Convert.FromBase64String(protectedValue), null, DataProtectionScope.CurrentUser));
+
+    public bool IsEncryptedAtRest => true;
+}
+#endif
+```
+
+Android 用 `AndroidJavaObject` 调 Keystore（`KeyGenParameterSpec` + `AES/GCM`）实现同一接口；iOS/macOS 用 Keychain。
+**WebGL 没有安全存储**：不要把节点密钥放进浏览器产物，WebGL 现场请走服务端签发的短期 scoped token（待实现）或仍用本机 Edge 形态。
+
+### 15.3 密钥轮换与吊销
+
+- 轮换：后台 `POST /api/admin/devices/{deviceId}/reset-secret` → 服务端把旧密钥降级为"上一代"并设到期时间
+  （双活窗口 N/N-1，默认 24h）→ 端侧用新密钥替换本地凭据即可，窗口内旧密钥仍可用，**不会掉线**。
+- 吊销/停用：`POST /api/admin/devices/{deviceId}/enabled`（`false`）→ 该节点所有调用立即 `DEVICE_DISABLED`。
+
+### 15.4 排错速查
+
+| 错误码 | 含义 | 处理 |
+|---|---|---|
+| `CONFIGURATION` | 插件本地参数问题（Endpoint 为空/非绝对、http 非环回未放行、缺 token/nodeId） | 按消息修正配置 |
+| `ENROLLMENT_TOKEN_INVALID` / `EXPIRED` / `REVOKED` / `EXHAUSTED` | 注册令牌不存在/过期/吊销/次数用尽 | 让运维重发令牌 |
+| `DEVICE_NOT_FOUND` / `DEVICE_SECRET_MISSING` | 节点未注册 / 服务端无密钥 | 后台注册节点或重置密钥 |
+| `DEVICE_DISABLED` | 节点被停用 | 后台启用 |
+| `DEVICE_REPLAY` | 时间戳超出 ±5min（时钟漂移）或 nonce 重放 | 校时（NTP）；确认没有复用请求 |
+| `DEVICE_UNAUTHORIZED` | 签名不匹配（密钥不一致 / 签名原文口径变化） | 比对密钥；确认路径与 body 未被中间层改写 |
+| `NODE_EXHIBIT_REQUIRED` | Hub 节点未携带 `exhibitId` | Hub 必须逐次显式携带 |
+| `NODE_EXHIBIT_FORBIDDEN` | 节点无权代表该展项（Hub 不在授权集合 / 展项机携带了别的展项） | 后台维护授权集合，或修正调用参数 |
+| `VALIDATION_FAILED` | 服务端没定出展项（无绑定且无 env 兜底） | 绑展项或显式传入 |
+
+> ✅ 签名原文（v2）为 `[METHOD, PATH?sortedQuery, TIMESTAMP, NONCE, SHA256(body)]`。
+> **查询串已纳入签名**（按 key 升序、不解码、空值渲染为 `key`、无参数省略 `?`），所以 `/api/edge/resources?...` 里的 `exhibitId/title/fileName` 也被保护：
+> 中间人改写 query 会直接验签失败（`DEVICE_UNAUTHORIZED`）。注意因此**中间层（nginx/网关）不得改写查询串或重排序参数**。

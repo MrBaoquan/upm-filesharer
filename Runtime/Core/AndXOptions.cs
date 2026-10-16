@@ -34,6 +34,13 @@ namespace AndX
         /// </summary>
         public string ExhibitId { get; set; }
 
+        /// <summary>
+        /// 节点身份凭据（可选，solution §16.2）：**直连后端**时使用——插件持本机节点密钥（HMAC），
+        /// 服务端据此判定租户/展项并审计到展项。经 AndXEdge（Local/Relay/Hub）接入时留空。
+        /// 与 <see cref="EdgeKey"/> 同时存在时**优先节点身份**（每节点一把、可单独吊销、审计到节点）。
+        /// </summary>
+        public NodeCredential NodeCredential { get; set; }
+
         /// <summary>共享核实现选择。</summary>
         public TransportMode Transport { get; set; } = TransportMode.Auto;
 
