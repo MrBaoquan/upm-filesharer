@@ -2,13 +2,23 @@ using System;
 
 namespace AndX
 {
-    /// <summary>AndX SDK 配置。默认经本机 AndXEdge 接入（Edge 代持鉴权），调用方无需提供密钥；<see cref="EdgeKey"/> 仅「绕过 Edge 直连后端」时使用。</summary>
+    /// <summary>
+    /// AndX SDK 配置。两种接入形态见 <see cref="AndXAccessMode"/>：**默认直连 AndX 云服务**（插件持本机节点凭据），
+    /// 也可经本机 AndXEdge 接入（Edge 代持鉴权，插件不持密钥）。业务调用与接入形态无关。
+    /// </summary>
     public sealed class AndXOptions
     {
         /// <summary>
-        /// 服务端 / 边缘网关基址（含协议，不含尾斜杠）。
-        /// 推荐指向本机 AndXEdge（如 <c>http://127.0.0.1:6699</c>），由 Edge 代持鉴权与公网地址；
-        /// 也可直接指向后端 API（此时需自行提供 <see cref="EdgeKey"/>）。
+        /// 接入方式（<see cref="AndXAccessMode"/>，默认 <see cref="AndXAccessMode.Direct"/>：**直连 AndX 云服务**）。
+        /// 仅 <see cref="Config.InitAuto(AndXOptions)"/> 读取并按它解析基址与凭据；
+        /// 显式 <see cref="Config.Init(AndXOptions)"/> 不做推断，此字段只作声明。
+        /// </summary>
+        public AndXAccessMode AccessMode { get; set; } = AndXAccessMode.Direct;
+
+        /// <summary>
+        /// 服务端 / 边缘网关基址（含协议，不含尾斜杠）。**含义随 <see cref="AccessMode"/> 变化**：
+        /// 直连 = 后端 API 基址（缺省读环境变量 <c>ANDX_ENDPOINT</c>）；
+        /// Edge = 本机 AndXEdge 基址（缺省 <c>ANDX_EDGE_ENDPOINT</c> → <c>http://127.0.0.1:6699</c>）。
         /// </summary>
         public string Endpoint { get; set; }
 
@@ -38,8 +48,22 @@ namespace AndX
         /// 节点身份凭据（可选，solution §16.2）：**直连后端**时使用——插件持本机节点密钥（HMAC），
         /// 服务端据此判定租户/展项并审计到展项。经 AndXEdge（Local/Relay/Hub）接入时留空。
         /// 与 <see cref="EdgeKey"/> 同时存在时**优先节点身份**（每节点一把、可单独吊销、审计到节点）。
+        /// <see cref="Config.InitAuto(AndXOptions)"/> 在 <see cref="AndXAccessMode.Edge"/> 模式下会**清空**它：
+        /// 经 Edge 时插件不下发节点签名，身份由 Edge 代持。
         /// </summary>
         public NodeCredential NodeCredential { get; set; }
+
+        /// <summary>
+        /// 首启注册令牌（可选）：只有「还没有本机节点密钥」时才需要，用它在 <see cref="Config.InitAutoAsync"/> 里换节点身份。
+        /// **属于凭据**：只从环境变量 <c>ANDX_ENROLLMENT_TOKEN</c> 或部署配置注入，切勿写进代码或打进包体（规范 R9.2）。
+        /// </summary>
+        public string EnrollmentToken { get; set; }
+
+        /// <summary>
+        /// 首启注册的节点编号（可选）：展馆内唯一的硬件编号，缺省读环境变量 <c>ANDX_NODE_ID</c>。
+        /// 只在 <see cref="Config.InitAutoAsync"/> 注册那一刻使用；注册完成后身份来自凭据文件。
+        /// </summary>
+        public string NodeId { get; set; }
 
         /// <summary>共享核实现选择。</summary>
         public TransportMode Transport { get; set; } = TransportMode.Auto;

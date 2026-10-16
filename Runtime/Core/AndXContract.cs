@@ -36,6 +36,15 @@ namespace AndX.Core
 
             /// <summary>节点自助注册（唯一免节点鉴权的控制面端点，solution §16.2）。</summary>
             public const string EdgeEnroll = "/api/edge/enroll";
+
+            /// <summary>节点自省：本机身份 + 授权展项集合（节点 HMAC 鉴权，S7）。</summary>
+            public const string DeviceSelf = "/api/devices/self";
+
+            /// <summary>节点自省：本节点最近的控制面审计流水（1~100 条，默认 20）。</summary>
+            public static string DeviceSelfAudit(int limit)
+            {
+                return DeviceSelf + "/audit?limit=" + limit;
+            }
             public const string PayOrders = "/api/pay/orders";
             public const string ResourceOrders = "/api/pay/resource-orders";
 

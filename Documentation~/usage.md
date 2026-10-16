@@ -28,16 +28,15 @@
 
 ## 1. 设计原则
 
-1. **接入最小化**：默认只认本机 AndXEdge（`AndX.Config.InitLocal()`）。鉴权、展项标识、公网地址均由 Edge 代持，**插件不持密钥**。
+1. **两种接入形态，一套业务 API**：**默认直连 AndX 云服务**（`AndX.Config.InitAuto()`：插件持本机节点凭据，服务端审计精确到「节点 + 展项」）；也可经本机 AndXEdge（`AndX.Config.InitLocal()`：鉴权 / 展项标识 / 公网地址由 Edge 代持，**插件不持密钥**）。`Share` / `Pay` / `AI` 的调用代码**完全一样**，差异只在「凭据归谁 / 展项身份从哪来」（见 §15.5 对照表）。
 2. **参数最小化**：能省的参数都省。展项可用全局默认 `AndXOptions.ExhibitId`，上传/付费/AI 的调用处可覆盖。
 3. **定价不由端侧决定**：端侧类型没有价格字段，价格一律由服务端/管理后台配置并回传。
 4. **稳定错误码**：所有失败统一抛 `AndXException`，读 `Code`（稳定码），不依赖 HTTP 状态码做业务判断。
 5. **能力域静态入口**：`AndX.Config` 一次配置，业务方法挂在 `AndX.Share.*` / `AndX.Pay.*` / `AndX.AI.*`，不引入实例门面。
 
 ```text
-[Unity 插件] --HTTP--> [AndXEdge（本机，代持鉴权）] --公网--> [AndX 服务端]
-     |                                                        |
-     +---------------- 扫码用户（微信小程序资源页/付费页）<-----+
+直连（默认）：[Unity 插件（持本机节点凭据 HMAC）] --HTTPS--> [AndX 服务端]
+Edge：        [Unity 插件（不持密钥）] --HTTP--> [AndXEdge（本机，代持鉴权）] --公网--> [AndX 服务端]
 ```
 
 ## 2. 安装
@@ -56,23 +55,23 @@ Package Manager → 选中 **AndX** → **Samples** → **Import**，导入后�
 
 | 示例 | 覆盖能力 | 形态 |
 |------|----------|------|
-| **AndX Demo** | `Config.InitLocal()` → `Share.UploadAsync` → `LoadQrTextureAsync` | 场景 `QRCodePreview` |
+| **Share And QR** | `Config.InitAuto()` → `Share.UploadAsync` → `LoadQrTextureAsync`（并演示 `Node.SelfAsync` 节点自省） | 场景 `ShareAndQr` |
 | **Scan And Download** | `Share.ResolveAsync`（预览 / 定价 / 是否已购）、`Share.GetDownloadAsync`（下载授权） | 场景 `ScanAndDownload` |
 | **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → `Share.IssueResourceTicketAsync` 出码 | 场景 `AiImage` |
 | **Pay Ticket** | `Pay.CreateTicketAsync`、`Pay.QueryOrderAsync` | 场景 `PayTicket` |
 
-- 每个示例都是「场景 + 脚本」：导入后打开场景 → **Play 即出结果**，无需先改任何 Inspector 参数。
+- 每个示例都是「场景 + 脚本」：导入后打开场景 → 填好接入方式（见下）→ **Play 即出结果**。
 - 组件参数都带了可用默认值（`endpoint` / `exhibitId` / `token` / `q` 留空即走 Edge / 服务端默认），并默认开启 `autoRunOnStart`，Play 后自动跑一遍主流程：
-  - `AndX Demo`：上传场景里已挂好的 `example.jpg` → 出码到 `RawImage`。
+  - `Share And QR`：直连模式先打印一次节点自省（我是谁、代表哪个展项），再上传场景里已挂好的 `example.jpg` → 出码到 `RawImage`。
   - `Scan And Download`：没配 token 时**自举**——上传一张运行时生成的示例图换来真实票据，再走「解析 → 预览 → 下载授权」，完整跑通一码双端链路。
   - `AI Image`：自动查一次能力（免费，可立刻看出服务端 AI 聚合网关是否可用）。
   - `Pay Ticket`：自动签发票据并把付费码画到 `RawImage`。
 - `AI Image` 的**生图会消耗服务端配额**，因此不自动触发；点场景里的「生图并出码」按钮或 Inspector 齿轮菜单即可。
 - 想手动控制节奏：把 `autoRunOnStart` 关掉，改用场景按钮（已绑定 `ShareFile` / `Resolve` / `Download` / `GenerateAndShowQr` / `CheckCapabilities` / `CreateTicket` / `QueryOrder`）或 Inspector 齿轮菜单（`ContextMenu`）。状态与错误码统一回显在场景的 `Status` 文本上。
-- 唯一前置条件：本机跑着 **AndXEdge**（默认 `http://127.0.0.1:6699`；鉴权 / 展项标识 / 公网地址都由它代持，插件不持密钥）。
+- 前置条件随接入方式而定：**直连（默认）**需要后端基址（Inspector 的 `endpoint`，或环境变量 `ANDX_ENDPOINT`）+ 本机节点凭据（见 §15.1）；**经 Edge** 需要本机跑着 AndXEdge（默认 `http://127.0.0.1:6699`）。缺什么示例会在 Console 里直接给出可操作的错误提示。
 - 示例资源（含场景）随包带 `.meta`，导入时 GUID 保持不变，场景里的脚本与贴图引用不会丢。
 - 场景 UI 使用 uGUI 内建的 `Text`（不依赖 TextMeshPro），示例不引入包清单之外的依赖。
-- 想直连后端 / 自定义基址：示例 1 的 Inspector 里填 `endpoint` 即可（`EdgeKey` 只从环境变量 `ANDX_EDGE_KEY` 取，不入包）。
+- **接入方式在 Inspector 里选**：每个示例的第一个字段 `accessMode` = `Direct`（默认：直连后端）/ `Edge`（经本机 AndXEdge）/ `Auto`（本机有节点凭据则直连，否则走 Edge）；`endpoint` 留空时，直连读环境变量 `ANDX_ENDPOINT`、Edge 用 `127.0.0.1:6699`。
 
 ## 3. 快速开始
 
@@ -86,8 +85,11 @@ public class AndXQuickStart : MonoBehaviour
 {
     async void Start()
     {
-        // 1) 零参数接入本机 AndXEdge（默认 http://127.0.0.1:6699）
-        AndX.Config.InitLocal();
+        // 1) 接入（二选一，业务调用完全一样）
+        //    默认直连 AndX 云服务：插件持本机节点凭据（首启流程见 usage.md §15.1）
+        AndX.Config.InitAuto(new AndXOptions { Endpoint = "https://api.example.com" });
+        //    或经本机 AndXEdge（Edge 代持鉴权，插件不持密钥）
+        // AndX.Config.InitLocal();   // = InitAuto(AccessMode = Edge)，默认 http://127.0.0.1:6699
 
         // 2) 上传素材并拿到二维码（exhibitId 可省略，由 Edge / 服务端兜底）
         ShareResult result = await AndX.Share.UploadAsync(
@@ -106,19 +108,28 @@ public class AndXQuickStart : MonoBehaviour
 ## 4. 配置 Config
 
 ```csharp
-AndX.Config.IsConfigured;                 // 是否已配置
-AndX.Config.InitLocal();                  // 零参数：指向本机 Edge，Edge 代持鉴权
-AndX.Config.Init(new AndXOptions { ... });// 显式配置（或直连后端）
-AndX.Config.Init(options, transport);     // 显式注入传输实现（测试 / 自定义）
-AndX.Config.Reset();                      // 清空（测试与场景切换）
+AndX.Config.IsConfigured;                        // 是否已配置
+AndX.Config.InitAuto();                          // ★ 推荐：按 AccessMode（默认 Direct 直连）解析基址与凭据
+AndX.Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Edge });   // 经本机 AndXEdge
+await AndX.Config.InitAutoAsync(new AndXOptions { EnrollmentToken = token, NodeId = "DEV-001" });  // 首启注册
+AndX.Config.InitLocal();                         // 便捷别名 = InitAuto(AccessMode = Edge)
+AndX.Config.Init(new AndXOptions { ... });       // 显式配置：Endpoint 必填，不做模式推断
+AndX.Config.Init(options, transport);            // 显式注入传输实现（测试 / 自定义）
+AndX.Config.ActiveMode;                          // 生效的接入方式（Direct / Edge）
+AndX.Config.ActiveNodeId;                        // 生效的节点身份（直连模式；经 Edge 为 null）
+AndX.Config.Describe();                          // 一行接入摘要（不含密钥），日志与排障直接打印
+AndX.Config.Reset();                             // 清空（测试与场景切换）
 ```
 
 ### AndXOptions
 
 | 属性 | 默认 | 说明 |
 |---|---|---|
-| `Endpoint` | 必填 | 服务端 / Edge 基址（含协议，不含尾斜杠），如 `http://127.0.0.1:6699` |
-| `EdgeKey` | — | 边缘共享密钥 `X-Edge-Key`；**仅直连后端时需要**，对 `/api/edge/*` 与 `/api/ai/*` 生效；经本机 Edge 时留空 |
+| `AccessMode` | `Direct` | 接入方式：`Direct` 直连后端 / `Edge` 经本机 AndXEdge / `Auto` 自动（有节点凭据则直连，否则走 Edge）。仅 `InitAuto` 读取 |
+| `Endpoint` | `InitAuto` 时可有默认 | 基址（含协议，不含尾斜杠）。直连 = 后端基址（缺省读 `ANDX_ENDPOINT`）；Edge = 本机 Edge 基址（缺省 `127.0.0.1:6699`）；显式 `Init` 时**必填** |
+| `NodeCredential` | 自动加载 | 节点身份（每机一把、可单独吊销）。缺省从本机凭据文件加载；**直连模式必须有**，经 Edge 时忽略 |
+| `EnrollmentToken` / `NodeId` | 环境变量 | 只有「首启注册」用：配 `InitAutoAsync` 用一次性令牌换节点密钥（`ANDX_ENROLLMENT_TOKEN` / `ANDX_NODE_ID`） |
+| `EdgeKey` | — | 边缘共享密钥 `X-Edge-Key`；**旧轨**：仅「无节点身份时用共享密钥直连后端」的过渡期需要，新接入请用节点身份 |
 | `AccessToken` | — | 登录令牌；需登录接口自动带 `Authorization: Bearer` |
 | `AccessTokenProvider` | — | 令牌提供者（每次请求取值，便于刷新）；设置后优先于 `AccessToken` |
 | `ExhibitId` | — | 全局默认展项；`Share` / `Pay` / `AI` 未显式传参时兜底（调用处显式值优先） |
@@ -130,8 +141,22 @@ AndX.Config.Reset();                      // 清空（测试与场景切换）
 **密钥只从环境变量加载，不入代码、不入包体：**
 
 ```csharp
-string edgeKey = EdgeKey.FromEnvironment();   // 读取环境变量 ANDX_EDGE_KEY
+string edgeKey = EdgeKey.FromEnvironment();   // 读取环境变量 ANDX_EDGE_KEY（旧轨）
 ```
+
+`InitAuto` 还会读这些环境变量（**只有 `InitAuto` / `InitAutoAsync` 读**，显式 `Init` 完全按参数走）：
+
+| 环境变量 | 作用 | 对应字段 |
+|---|---|---|
+| `ANDX_ENDPOINT` | 直连后端基址 | `AndXOptions.Endpoint` |
+| `ANDX_EDGE_ENDPOINT` | 本机 Edge 基址 | `AndXOptions.Endpoint`（Edge 模式） |
+| `ANDX_ENROLLMENT_TOKEN` | 首启注册的一次性令牌（**凭据，勿入日志**） | `AndXOptions.EnrollmentToken` |
+| `ANDX_NODE_ID` | 首启注册的节点编号 | `AndXOptions.NodeId` |
+| `ANDX_ALLOW_INSECURE_HTTP` | 放行内网 http 明文基址（仅联调；`1/true/yes/on`） | `AndXOptions.AllowInsecureHttp` |
+| `ANDX_EDGE_KEY` | 旧轨共享密钥直连 | `AndXOptions.EdgeKey` |
+
+> 接入方式（Direct / Edge）**刻意不提供环境变量**：它决定「展项身份从哪来」，必须由代码 / Inspector 显式选择，
+> 避免现场一个残留变量把选择悄悄改掉。优先级：显式字段 &gt; 环境变量 &gt; 默认值（环回基址）。
 
 ```csharp
 // 直连后端（绕过边缘网关）示例
@@ -358,14 +383,15 @@ SDK 侧（`AndXContract.SdkErrorCodes`）：
 - **进度回调线程**：`IProgress` 回调线程取决于传入的实现——`new System.Progress<T>(...)` 在构造处捕获同步上下文（主线程构造即回调回主线程，可直接刷新 UI）；自定义实现需自行派发回主线程。
 - **传输已编组回主线程**：`AndX.Unity` 启动时（`RuntimeInitializeOnLoadMethod`）登记主线程上下文，传输层据此把 Unity API 调用编组回主线程，业务代码可安全 `await`。
 - **WebGL**：强制 `https`；只能使用 `TexturePayload` / `ByteArrayPayload`，`FilePathPayload` 运行时会抛配置错误。
-- **密钥**：插件默认不持密钥——`EdgeKey` 存于本机 AndXEdge，由 Edge 注入；仅「绕过 Edge 直连后端」时才需显式提供，且只经环境变量注入，切勿写入代码或打进包体。
+- **密钥**：直连模式插件持**本机节点凭据**（每机一把、可单独吊销；落盘保护器见 §15.2，生产必须注入 DPAPI / Keystore）；经 Edge 模式插件不持密钥（Edge 代持）。旧轨共享密钥 `EdgeKey` 只经环境变量注入，切勿写入代码或打进包体。
 
 ## 11. 常见场景
 
 ### 11.1 一键：上传截图并出码
 
 ```csharp
-AndX.Config.InitLocal();
+AndX.Config.InitAuto();      // 默认直连后端（基址见 ANDX_ENDPOINT 或 AndXOptions.Endpoint）
+// AndX.Config.InitLocal();  // 或经本机 AndXEdge
 ShareResult r = await AndX.Share.UploadAsync(new TexturePayload(screenshot), new UploadOptions { Title = "截图" });
 qrDisplay.texture = await r.LoadQrTextureAsync();
 ```
@@ -406,8 +432,15 @@ AndX.Config.Init(new AndXOptions { Endpoint = "https://edge.example.com" }, new 
 
 ## 12. FAQ
 
+**Q：直连和经 Edge 怎么选？切换成本大吗？**
+A：由 `AndXOptions.AccessMode`（示例里是 Inspector 的第一个下拉框）决定，**业务代码一行都不用改**：
+`Direct` 直连后端（插件持本机节点凭据，审计到「节点 + 展项」）、`Edge` 经本机 AndXEdge（Edge 代持鉴权；展项无外网 / 多展项共用出口时用）、`Auto` 自动选择。对照表见 §15.5。
+
+**Q：直连的凭据从哪来？每个展项都要配吗？**
+A：**展项不配凭据，机器才配凭据**：运维在后台签发一次性注册令牌 → 展项机首启用 `AndX.Node.EnrollAsync`（或 `Config.InitAutoAsync`）换到本机节点密钥并落盘；服务端按节点绑定裁决展项。展项维度配的是「授权关系」与「能力开关」，不是密钥。详见 §15.1。
+
 **Q：需要自己保存/传递边缘密钥吗？**
-A：不需要。默认 `InitLocal()`，密钥由本机 AndXEdge 代持。仅直连后端时才用 `EdgeKey.FromEnvironment()`。
+A：直连不需要共享密钥（用每机一把的节点凭据）；经 Edge 也不需要（Edge 代持）。`EdgeKey.FromEnvironment()` 只服务于「旧轨共享密钥直连」的过渡期现场。
 
 **Q：`exhibitId` 什么时候要传？**
 A：单机单展项可不传；一个 Edge 服务多个展项时，建议在 `AndXOptions.ExhibitId` 配一次全局默认，个别调用再覆盖。
@@ -428,13 +461,16 @@ A：不能。端侧类型不含价格字段，价格一律由服务端/后台配
 
 | 入口 | 成员 |
 |---|---|
-| `AndX.Config` | `InitLocal()` / `Init(AndXOptions)` / `Init(AndXOptions, IAndXTransport)` / `Reset()` / `IsConfigured` |
+| `AndX.Config` | `InitAuto(AndXOptions?)` / `InitAutoAsync(AndXOptions?)` / `InitLocal()` / `Init(AndXOptions)` / `Init(AndXOptions, IAndXTransport)` / `ActiveMode` / `ActiveNodeId` / `ResolutionReason` / `Describe()` / `Reset()` / `IsConfigured` |
+| `AndX.Node` | `EnrollAsync`（首启注册换节点密钥）/ `SelfAsync`（我是谁、能代表哪些展项）/ `RecentAuditAsync`（我最近发出的调用与结果码） |
+| `AndX.AndXEnvironment` | `Endpoint` / `EdgeEndpoint` / `EnrollmentToken` / `NodeId` / `AllowInsecureHttp`（`InitAuto` 的取值来源） |
+| `AndX.AndXCredentialProvider` | `StoreFactory`（平台注入凭据存储；Unity 侧已默认注册 `persistentDataPath/andx/node-credential.json`） |
 | `AndX.Share` | `UploadAsync` / `IssueResourceTicketAsync` / `ResolveAsync` / `GetDownloadAsync` / `AbortAsync` / `QrImageUrl` / `GetQrPngAsync` |
 | `AndX.Pay` | `CreateTicketAsync` / `QueryOrderAsync` / `QrImageUrl` / `GetQrPngAsync` |
 | `AndX.AI` | `GetCapabilitiesAsync` / `CreateImageJobAsync` / `GetJobAsync` / `CancelJobAsync` / `WaitForJobAsync` / `GenerateImageAsync` |
 | `AndX.Unity` | `TexturePayload` / `FilePathPayload` / `ByteArrayPayload` / `LoadQrTextureAsync()` |
 | `AndX.Core.ShareLink` | `ExtractToken` / `BuildShareUrl` / `PathForPurpose` |
-| `AndX.EdgeKey` | `FromEnvironment()` |
+| `AndX.EdgeKey` | `FromEnvironment()`（旧轨共享密钥） |
 | `AndXContract` | `Version` / `Paths` / `Purposes` / `Headers` / `ErrorCodes` / `SdkErrorCodes` / `AICapabilities` / `AIJobStatuses` / `Defaults` |
 
 ## 14. 契约与兼容
@@ -449,6 +485,9 @@ A：不能。端侧类型不含价格字段，价格一律由服务端/后台配
 
 ## 15. 直连后端（节点身份）
 
+> **直连是默认形态**（`AndXAccessMode.Direct`）：接入代码与经 Edge 只差一行——`AndX.Config.InitAuto()` 而不是 `InitLocal()`；
+> 业务调用（`Share` / `Pay` / `AI`）、异常处理、二维码链路完全一致。两种模式的对照与切换成本见 §15.5。
+
 **什么时候用**：展项机能直接路由到后端（同局域网内网后端，或能出外网的现场）。此时**不需要 AndXEdge**：
 插件持**本机节点凭据**（每台机器一把、可单独吊销），服务端据此判定租户/展项，并把调用与产物**审计到「节点 + 展项」**。
 AndXEdge 只在两类现场保留价值：① 展项无外网、局域网内有出口（`Relay` 透传）；② 多个展项共用一个出口（`Hub` 多展项）。
@@ -459,6 +498,20 @@ AndXEdge 只在两类现场保留价值：① 展项无外网、局域网内有�
 > 3. **插件不持共享密钥**：直连只用节点 HMAC；`EdgeKey` 属旧轨（经 Edge / 过渡期），后续版本退役。
 
 ### 15.1 首次接入（每台机器一次）
+
+最省事的写法：令牌与节点编号走环境变量，凭据自动落盘，业务代码直接开始调用：
+
+```csharp
+// ANDX_ENDPOINT=https://api.example.com
+// ANDX_ENROLLMENT_TOKEN=<运维签发的一次性令牌，短时效 / 限次数>
+// ANDX_NODE_ID=DEV-001
+await AndX.Config.InitAutoAsync();     // 用令牌自助注册 → 节点密钥落盘 → 建好客户端（Auto 也会因此判定为直连）
+Debug.Log(AndX.Config.Describe());     // mode=Direct | identity=节点身份 node:DEV-001 | 说明=…
+```
+
+之后每次启动只需**同步**的 `AndX.Config.InitAuto()`：凭据已在盘上，不再需要令牌。
+
+需要显式控制（自定义名称、指定凭据路径、注入平台保护器）时用长写法：
 
 ```csharp
 using AndX;
@@ -474,7 +527,12 @@ var credential = store.Load()
     ?? await AndX.Node.EnrollAsync(endpoint, enrollmentToken: token, nodeId: "DEV-001", name: "1 号展项机", store: store);
 
 // 3) 直连模式：把节点身份交给 Config（不再需要 EdgeKey / 本机 Edge）
-AndX.Config.Init(new AndXOptions { Endpoint = endpoint, NodeCredential = credential });
+AndX.Config.InitAuto(new AndXOptions
+{
+    AccessMode = AndXAccessMode.Direct,
+    Endpoint = endpoint,
+    NodeCredential = credential,      // 已加载的凭据优先于本机凭据文件
+});
 
 // 4) 之后与经 Edge 完全一致（同一套 API，差异只在 Endpoint）
 var result = await AndX.Share.UploadAsync(new TexturePayload(screenshot), new UploadOptions { Title = "展项截图" });
@@ -557,3 +615,24 @@ Android 用 `AndroidJavaObject` 调 Keystore（`KeyGenParameterSpec` + `AES/GCM`
 > ✅ 签名原文（v2）为 `[METHOD, PATH?sortedQuery, TIMESTAMP, NONCE, SHA256(body)]`。
 > **查询串已纳入签名**（按 key 升序、不解码、空值渲染为 `key`、无参数省略 `?`），所以 `/api/edge/resources?...` 里的 `exhibitId/title/fileName` 也被保护：
 > 中间人改写 query 会直接验签失败（`DEVICE_UNAUTHORIZED`）。注意因此**中间层（nginx/网关）不得改写查询串或重排序参数**。
+### 15.5 两种模式怎么选、切换成本
+
+**切换成本 = 一个字段**：`AndXOptions.AccessMode`（示例里是 Inspector 的第一个下拉框）。业务调用、异常处理、二维码链路**完全不变**。
+
+| 维度 | `Direct`（默认，直连后端） | `Edge`（经本机 AndXEdge） |
+|---|---|---|
+| 谁持凭据 | 插件持本机节点凭据（每机一把，可单独吊销 / 轮换） | Edge 持共享密钥，插件不持密钥 |
+| 展项身份 | 服务端按**节点绑定**裁决（客户端无法冒充；只有 Hub 中控才逐次携带） | Local / Relay 由 Edge 注入；Hub 按 IP 映射注入 |
+| 服务端审计 | `identity_source=node_hmac`，精确到「节点 + 展项」 | 边缘节点身份 + 展项（Edge 用 v2 重签） |
+| 现场要求 | 展项机能直达后端（内网后端或可出外网） | 展项无外网（Relay）/ 多展项共用一个出口（Hub） |
+| 典型错误码 | `DEVICE_*` / `NODE_EXHIBIT_*` / `ENROLLMENT_TOKEN_*` | `EDGE_UNAUTHORIZED` / `EDGE_DISABLED` |
+| 排障入口 | `AndX.Node.SelfAsync()` / `AndX.Node.RecentAuditAsync()`（插件侧自省） | Edge 诊断页 `GET /diagnostics/self` + 最近调用表 |
+
+**治理结论（solution §16）**：要「审计到精确展项」，两种模式的正式形态都是**节点身份**——直连模式插件自带，
+Edge 模式由 Edge 重签；`EdgeKey` 共享密钥是**过渡期旧轨**，只用于还没发节点身份的现场，新接入不应使用。
+
+**本轮优化掉的三个隐性成本**（2026-10-16）：
+
+1. **模式不再写死在示例代码里**：改 Inspector 下拉框即可，不用改码重编；
+2. **凭据样板收进 SDK**：`Config.InitAuto()` 自动加载本机凭据、按需读环境变量，首启注册用 `InitAutoAsync()` 一步完成（不用手抄 `EnrollAsync` + 落盘 + `Init` 三步）；
+3. **直连也有自省入口**：`AndX.Node.SelfAsync()` / `RecentAuditAsync()`，与 Edge 诊断页对称——现场可直接回答「我是谁、这次调用算在哪个展项头上、结果码是什么」。

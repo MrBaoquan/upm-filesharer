@@ -23,23 +23,23 @@
   },
   "samples": [
     {
-      "displayName": "AndX Demo",
-      "description": "上传 Texture2D 并显示二维码（含可运行场景 QRCodePreview）",
-      "path": "Samples~/AndX Demo"
+      "displayName": "Share And QR",
+      "description": "上传 Texture2D 并显示二维码；含「直连后端 / 经本机 AndXEdge」接入方式开关（含可运行场景 ShareAndQr）",
+      "path": "Samples~/Share And QR"
     },
     {
       "displayName": "Scan And Download",
-      "description": "扫码解析（预览 / 定价 / 是否已购）与下载授权（含可运行场景 ScanAndDownload）",
+      "description": "扫码解析（预览 / 定价 / 是否已购）与下载授权；接入方式可在 Inspector 选择（默认直连）（含可运行场景 ScanAndDownload）",
       "path": "Samples~/Scan And Download"
     },
     {
       "displayName": "AI Image",
-      "description": "AI 生图任务提交与轮询，产物复用分享链路出码（含可运行场景 AiImage）",
+      "description": "AI 生图任务提交与轮询，产物复用分享链路出码；接入方式可在 Inspector 选择（默认直连）（含可运行场景 AiImage）",
       "path": "Samples~/AI Image"
     },
     {
       "displayName": "Pay Ticket",
-      "description": "展项付费票据签发与订单状态查询（含可运行场景 PayTicket）",
+      "description": "展项付费票据签发与订单状态查询；接入方式可在 Inspector 选择（默认直连）（含可运行场景 PayTicket）",
       "path": "Samples~/Pay Ticket"
     }
   ]

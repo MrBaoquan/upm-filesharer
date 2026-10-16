@@ -9,11 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **接入方式（直连 / 经 Edge）成为一等配置**：`AndXAccessMode`（`Direct` 默认 / `Edge` / `Auto`）、`AndXOptions.AccessMode`、`AndX.Config.InitAuto(AndXOptions?)`（按模式解析基址与凭据，结果写回 `Config.ActiveMode` / `ActiveNodeId` / `ResolutionReason` / `Describe()`，可读原因不含任何密钥）、`AndX.Config.InitAutoAsync(...)`（允许用一次性注册令牌完成首启注册）。`Config.InitLocal()` 变为 `InitAuto(AccessMode = Edge)` 的便捷别名，行为不变。
+- **`AndXEnvironment`**（`ANDX_ENDPOINT` / `ANDX_EDGE_ENDPOINT` / `ANDX_ENROLLMENT_TOKEN` / `ANDX_NODE_ID` / `ANDX_ALLOW_INSECURE_HTTP`）与 **`AndXCredentialProvider.StoreFactory`**（平台注入凭据存储；`AndX.Unity` 启动时注册 `persistentDataPath/andx/node-credential.json`）：直连模式不再需要手抄「加载凭据 → 注册 → Init」样板。接入方式（Direct/Edge）**刻意不提供环境变量**，避免残留变量把现场选择悄悄改掉。
+- **节点自省入口**：`AndX.Node.SelfAsync()`（`GET /api/devices/self`：角色 / 绑定展项 / 授权展项集合 / 启用状态 / 密钥提示位）与 `AndX.Node.RecentAuditAsync(limit)`（`GET /api/devices/self/audit`：本节点最近调用 + 服务端**已校验**的展项归属与结果码），使插件侧排障与 Edge 诊断页对称；新增公开模型 `NodeIdentity` / `NodeAuditEntry`。
+- **示例的接入方式可在 Inspector 选择**：每个示例首字段 `accessMode`（`Direct` 默认 / `Edge` / `Auto`）+ `endpoint`（留空读环境变量），统一走 `Config.InitAuto`；`Share And QR` 新增节点自省演示（Play 时自动打印 + 齿轮菜单 `节点自省（我是谁）`）。
+- **插件侧直连 E2E（手动、env-gated）**：`Tests~/AndXCore.Tests/ManualDirectE2ETests.cs` + `HttpTransport.cs`（真实 HTTP 传输，仅供手动 E2E）。`ANDX_E2E=1` 且提供真实节点凭据时，跑通「直连建客户端 → 节点自省 → 真实上传（节点签名 v2 + body 摘要）→ 审计自省」；首次实测（本地 dev 栈）通过：`identity_source=node_hmac`、`exhibit_id` 与节点绑定一致。
+- 引擎门禁脚本 `scripts/unity-sample-gate.ps1`：导入示例前**清空目标目录**——示例改名 / 删文件时上一轮残留副本会与新副本 GUID 撞车（Unity 会静默改写 GUID，表现为场景 missing script）。
 - **直连后端（节点身份）**：`AndX.Node.EnrollAsync`（一次性注册令牌 → 本机节点密钥，`POST /api/edge/enroll`）、`NodeCredential`、`NodeCredentialStore` / `ICredentialProtector` / `PassthroughCredentialProtector`、`AndX.Unity.NodeCredentialStorage`（`persistentDataPath/andx/node-credential.json`）。服务端据此判定租户/展项并审计到「节点 + 展项」（solution §16.2 / §16.3）。
 - `AndX.Core.DeviceSigner`：节点请求签名（`x-device-id/timestamp/nonce/signature` + 流式端点 `x-device-body-sha256`），签名原文与服务端 `device-crypto.service.ts` 逐字节一致；跨端测试向量见 `Tests~/AndXCore.Tests/NodeIdentityTests.cs`。
 - `AndXContract.Paths.EdgeEnroll` 与 `AndXContract.Headers.Device*` 正式启用（此前只有常量、无实现）。
 - **四个示例齐备且随包入库**：`AndX Demo` / `Scan And Download` / `AI Image` / `Pay Ticket` 各含**可运行场景**（`QRCodePreview` / `ScanAndDownload` / `AiImage` / `PayTicket`）与 `autoRunOnStart`（导入后 Play 即可看到结果）；示例资源与场景均带 `.meta`，元数据由 `package.json` 的 `samples` 声明。示例已在真实 Unity 2023.1 工程内通过编译门禁。
 - 文档：`Documentation~/usage.md` 新增 §15「直连后端（节点身份）」（凭据模型、归属链、DPAPI/Keystore 注入示例、轮换/吊销、排错速查），并补充示例章节的场景与触发方式。
+
+### Changed
+
+- **示例命名与工程约定对齐**：`AndX Demo` → **`Share And QR`**（目录 `Samples~/Share And QR`；场景 `QRCodePreview.unity` → `ShareAndQr.unity`；类 `AndXExample` → `ShareAndQrExample`），并给四个示例脚本统一加命名空间 **`AndX.Samples`**（此前落在全局命名空间，会污染接入方 `Assembly-CSharp`）。命名规则：目录 = 能力域名词短语；场景 = 目录名去空格（PascalCase，缩写沿用包内既有风格 `Qr`）；类 = 场景名 + `Example`。GUID 全部保持不变（`git mv` + 保留 `.meta`），场景内脚本 / 贴图引用不受影响。
+- `AndXOptions.Endpoint` 的语义随 `AccessMode` 变化（直连 = 后端基址；Edge = 本机 Edge 基址），`InitAuto` 下支持环境变量缺省；显式 `Init(options)` 行为不变（Endpoint 仍必填、不做模式推断）。
 
 ### Changed（BREAKING）
 

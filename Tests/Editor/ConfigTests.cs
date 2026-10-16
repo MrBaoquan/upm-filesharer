@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using AndX.Core;
@@ -82,6 +83,63 @@ namespace AndX.Tests
             Config.Init(new AndXOptions { Endpoint = "https://edge.test" }, new RecordingTransport());
             var ex = Assert.ThrowsAsync<AndXException>(() => Share.IssueResourceTicketAsync(string.Empty));
             Assert.AreEqual(AndXContract.SdkErrorCodes.Configuration, ex.Code);
+        }
+        private static void WithTransport(Action body)
+        {
+            var saved = AndXTransportProvider.Factory;
+            try
+            {
+                AndXTransportProvider.Factory = () => new RecordingTransport();
+                body();
+            }
+            finally
+            {
+                AndXTransportProvider.Factory = saved;
+            }
+        }
+
+        [Test]
+        public void InitAuto_defaults_to_direct_and_requires_backend_endpoint()
+        {
+            WithTransport(() =>
+            {
+                var ex = Assert.Throws<AndXException>(() => Config.InitAuto());
+                Assert.AreEqual(AndXContract.SdkErrorCodes.Configuration, ex.Code);
+                Assert.IsTrue(ex.Message.Contains(AndXEnvironment.EndpointVariable), ex.Message);
+            });
+        }
+
+        [Test]
+        public void InitAuto_edge_mode_points_at_local_edge()
+        {
+            WithTransport(() =>
+            {
+                Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Edge });
+                Assert.IsTrue(Config.IsConfigured);
+                Assert.AreEqual(AndXAccessMode.Edge, Config.ActiveMode);
+                Assert.IsNull(Config.ActiveNodeId);
+                StringAssert.StartsWith(AndXContract.Defaults.LocalEdgeEndpoint, Pay.QrImageUrl("tok123"));
+            });
+        }
+
+        [Test]
+        public void InitAuto_direct_mode_uses_node_identity_without_leaking_secret()
+        {
+            WithTransport(() =>
+            {
+                Config.InitAuto(new AndXOptions
+                {
+                    Endpoint = "https://api.test",
+                    NodeCredential = new NodeCredential("DEV-001", "top-secret"),
+                    ExhibitId = "1024",
+                });
+
+                Assert.AreEqual(AndXAccessMode.Direct, Config.ActiveMode);
+                Assert.AreEqual("DEV-001", Config.ActiveNodeId);
+                StringAssert.Contains("node:DEV-001", Config.Describe());
+                StringAssert.DoesNotContain("top-secret", Config.Describe());
+                StringAssert.Contains("exhibitId=1024", Config.Describe());
+            });
         }
     }
 }

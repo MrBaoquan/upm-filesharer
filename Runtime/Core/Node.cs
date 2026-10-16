@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AndX.Core;
@@ -9,7 +10,10 @@ namespace AndX
     /// 节点身份（solution §16.2 / §16.3）：首启**自助注册**，换取本机唯一的节点密钥。
     ///
     /// 直连部署下插件持本机节点凭据（每节点一把、可单独吊销与轮换），服务端据此判定
-    /// 租户/展项并审计到展项；经 AndXEdge 部署（Local/Relay/Hub）时**不需要**本类。
+    /// 租户/展项并审计到展项；经 AndXEdge 部署（Local/Relay/Hub）时**不需要注册**（身份由 Edge 代持）。
+    ///
+    /// 另一个用途是**自省**：<see cref="SelfAsync"/>（我是谁、能代表哪些展项）与
+    /// <see cref="RecentAuditAsync"/>（我最近发出过哪些调用、服务端算在哪个展项头上）。
     ///
     /// 典型用法（首启一次）：
     /// <code>
@@ -85,6 +89,46 @@ namespace AndX
                 store.Save(credential);
             }
             return credential;
+        }
+
+        /// <summary>
+        /// 节点自省（S7）：返回「我是谁、我能代表哪些展项」——角色、绑定展项 / 授权展项集合、启用状态、
+        /// 最近状态与密钥提示位（明文密钥永不回传）。
+        ///
+        /// 展项机可用它核对「服务端认的展项」是否与现场一致——与审计落库用的是**同一个来源**
+        /// （<c>audit_request.exhibit_id</c>），因此是排障时最直接的证据。
+        /// 需要节点身份（直连模式）；经 Edge 时身份由 Edge 代持，插件直呼会返回 <c>EDGE_UNAUTHORIZED</c>。
+        /// </summary>
+        public static async Task<NodeIdentity> SelfAsync(CancellationToken cancellationToken = default)
+        {
+            var data = await Config.Api
+                .GetRawAsync(AndXContract.Paths.DeviceSelf, cancellationToken)
+                .ConfigureAwait(false);
+            var identity = data == null ? null : data.ToObject<NodeIdentity>(AndXJson.Serializer);
+            if (identity == null)
+            {
+                throw new AndXException(AndXContract.ErrorCodes.InternalError, "节点自省响应为空（服务端返回了非预期报文）");
+            }
+            return identity;
+        }
+
+        /// <summary>
+        /// 节点自省（S7）：本节点最近的控制面审计流水（1~100 条，默认 20）。
+        /// 每条含服务端**已校验**的展项归属（<see cref="NodeAuditEntry.ExhibitId"/>）与最终结果码，
+        /// 现场可直接回答「刚才那次调用算在哪个展项头上、为什么失败」。
+        /// </summary>
+        public static async Task<IReadOnlyList<NodeAuditEntry>> RecentAuditAsync(
+            int limit = 20,
+            CancellationToken cancellationToken = default)
+        {
+            var safeLimit = limit < 1 ? 1 : (limit > 100 ? 100 : limit);
+            var data = await Config.Api
+                .GetRawAsync(AndXContract.Paths.DeviceSelfAudit(safeLimit), cancellationToken)
+                .ConfigureAwait(false);
+            var items = data == null ? null : data["items"];
+            return items == null || items.Type == Newtonsoft.Json.Linq.JTokenType.Null
+                ? (IReadOnlyList<NodeAuditEntry>)new List<NodeAuditEntry>()
+                : items.ToObject<List<NodeAuditEntry>>(AndXJson.Serializer) ?? new List<NodeAuditEntry>();
         }
 
         private static IAndXTransport ResolveDefaultTransport()
