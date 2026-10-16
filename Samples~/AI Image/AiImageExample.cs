@@ -44,11 +44,14 @@ namespace AndX.Samples
         [Tooltip("模板图（相对 Assets/StreamingAssets/）：**留空=用示例自带的 templateImage**")]
         public string templateImagePath = "";
 
-        [Tooltip("示例自带的人脸图（随包分发，场景里已挂好）")]
-        public Texture2D faceImage;
+        [Tooltip("示例自带的人脸候选图（随包分发；每次生成**随机**挑一张）")]
+        public Texture2D[] faces;
 
-        [Tooltip("示例自带的模板图（随包分发，场景里已挂好）")]
-        public Texture2D templateImage;
+        [Tooltip("示例自带的模板候选图（随包分发；每次生成**随机**挑一张）")]
+        public Texture2D[] templates;
+
+        [Tooltip("是否每次生成随机换一组「人脸 × 模板」（关掉则固定用第 1 组）")]
+        public bool randomPairPerRun = true;
 
         [Tooltip("参考图长边上限（px）：越小上传/生成越快，建议 1024~1536")]
         public int referenceMaxEdge = 1280;
@@ -147,15 +150,17 @@ namespace AndX.Samples
                 // ① 读参考图（IO 并行）→ 缩放 + JPEG 编码（主线程）→ base64
                 SetStatus("读取参考图…");
                 var refSw = Stopwatch.StartNew();
-                Task<byte[]> faceIo = string.IsNullOrEmpty(faceImagePath)
+                ReferencePick facePick = PickAsset(faceImagePath, faces, "人脸");
+                ReferencePick templatePick = PickAsset(templateImagePath, templates, "模板");
+                Task<byte[]> faceIo = facePick.Path == null
                     ? Task.FromResult<byte[]>(null)
-                    : ReadStreamingAssetAsync(faceImagePath);
-                Task<byte[]> templateIo = string.IsNullOrEmpty(templateImagePath)
+                    : ReadStreamingAssetAsync(facePick.Path);
+                Task<byte[]> templateIo = templatePick.Path == null
                     ? Task.FromResult<byte[]>(null)
-                    : ReadStreamingAssetAsync(templateImagePath);
+                    : ReadStreamingAssetAsync(templatePick.Path);
                 byte[][] raw = await Task.WhenAll(faceIo, templateIo);
-                string face = EncodeReference(raw[0], faceImage, "人脸");
-                string template = EncodeReference(raw[1], templateImage, "模板");
+                string face = EncodeReference(raw[0], facePick.Texture, facePick.Label);
+                string template = EncodeReference(raw[1], templatePick.Texture, templatePick.Label);
                 refSw.Stop();
 
                 // ② 提交任务（两段式：先拿 jobNo，再轮询——这样才能分别计量「提交」与「等待」）
@@ -319,6 +324,47 @@ namespace AndX.Samples
             {
                 Debug.LogWarning($"[AndX.AI] 出码失败 code={e.Code} msg={e.Message}");
             }
+        }
+
+        /// <summary>一次参考图选择结果：StreamingAssets 覆盖路径 或 自带纹理 + 可读标签（用于日志/溯源）</summary>
+        private readonly struct ReferencePick
+        {
+            public ReferencePick(string path, Texture2D texture, string label)
+            {
+                Path = path;
+                Texture = texture;
+                Label = label;
+            }
+
+            /// <summary>StreamingAssets 相对路径（现场换图时用）；为空表示用自带纹理</summary>
+            public string Path { get; }
+
+            /// <summary>示例自带纹理</summary>
+            public Texture2D Texture { get; }
+
+            /// <summary>可读标签，如「人脸#2」「模板(StreamingAssets)」</summary>
+            public string Label { get; }
+        }
+
+        /// <summary>
+        /// 选一组参考图：填了 StreamingAssets 相对路径就用文件（现场换图，优先级最高）；
+        /// 否则从自带候选里**随机**挑一张（<see cref="randomPairPerRun"/> 关闭时固定第 1 张）。
+        /// 支持 N 张人脸 × M 张模板的随机组合。
+        /// </summary>
+        private ReferencePick PickAsset(string overridePath, Texture2D[] pool, string label)
+        {
+            if (!string.IsNullOrEmpty(overridePath))
+            {
+                return new ReferencePick(overridePath, null, label + "(StreamingAssets)");
+            }
+            if (pool == null || pool.Length == 0)
+            {
+                throw new AndXException(
+                    AndXContract.SdkErrorCodes.Configuration,
+                    $"参考图未配置：请在 Inspector 给「{label}」数组挂至少一张图（或填 StreamingAssets 相对路径）");
+            }
+            var index = randomPairPerRun && pool.Length > 1 ? UnityEngine.Random.Range(0, pool.Length) : 0;
+            return new ReferencePick(null, pool[index], $"{label}#{index + 1}");
         }
 
         /// <summary>读 StreamingAssets 文件（WebGL 走 UnityWebRequest，其余平台走文件 IO）。</summary>

@@ -313,8 +313,16 @@ MonoBehaviour:
   referenceJpegQuality: 85
   pollIntervalMs: 700
   ResultImage: {fileID: 1600000045}
-  faceImage: {fileID: 2800000, guid: 008d62fa1b3f46d78265ca2697321015, type: 3}
-  templateImage: {fileID: 2800000, guid: 9bd4a9af1d374740993fc3fd6f81e7a2, type: 3}
+  faces:
+  - {fileID: 2800000, guid: 9ab094fdd0504ff1bb4c7b8118713042, type: 3}
+  - {fileID: 2800000, guid: a7f403b9a8b2442fb16a2f503fc9f813, type: 3}
+  - {fileID: 2800000, guid: a2f0b55f595e4a94ae236c13bd48a7af, type: 3}
+  templates:
+  - {fileID: 2800000, guid: 96af80fbd70540da858386c11957dc9d, type: 3}
+  - {fileID: 2800000, guid: 3120763f4eae4deda4daf93cb1ce84f3, type: 3}
+  - {fileID: 2800000, guid: dc1caa4651f34ff9b59552190af4c64e, type: 3}
+  - {fileID: 2800000, guid: 80632296b70b4d148823eac82726ccf6, type: 3}
+  - {fileID: 2800000, guid: ba5fdb5226ce4a0789f3adba4c8b5c3e, type: 3}
   DisplayQRCode: {fileID: 1600000012}
   StatusText: {fileID: 1600000034}
   resultIndex: 0
