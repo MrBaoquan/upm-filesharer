@@ -6,9 +6,11 @@ AndX 展项能力平台 Unity 包。把本地图片/视频上传到 AndX 平台�
 - 最低 Unity：`2020.3`
 - 依赖：`com.unity.nuget.newtonsoft-json`（包已声明，自动拉取）
 - 支持平台：Windows / Android / WebGL
-- 完整使用文档：`docs/usage.md`
+- 完整使用文档：`Documentation~/usage.md`
 
 ## 安装
+
+### 方式一：Git URL（仓库地址，当前可用）
 
 Package Manager → **Add package from git URL**：
 
@@ -16,9 +18,41 @@ Package Manager → **Add package from git URL**：
 https://github.com/MrBaoquan/upm-filesharer.git
 ```
 
+> 仓库名沿用改名前的 `upm-filesharer`，包 ID 已是 `com.parful.andx`。
+
+### 方式二：内网 scoped registry（发布到 `http://upm.andcrane.com:4873` 后可用）
+
+在工程 `Packages/manifest.json` 中登记 registry 并声明依赖：
+
+```json
+{
+  "scopedRegistries": [
+    {
+      "name": "andcrane",
+      "url": "http://upm.andcrane.com:4873",
+      "scopes": ["com.parful", "com.software"]
+    }
+  ],
+  "dependencies": {
+    "com.parful.andx": "1.1.0"
+  }
+}
+```
+
+### 方式三：本地（embedded）
+
+把包目录放进工程的 `Packages/` 下（如 `unity/com.parful.andx`）。
+
+> 测试发现：**嵌入（embedded）安装时**包自带的引擎侧测试（`Tests/Editor`、`Tests/Runtime`）会被自动发现；**用 Git URL 或 registry 安装时**，需在 manifest 的 `testables` 中列出包名才能在工程内运行这些测试：
+>
+> ```json
+> { "testables": ["com.parful.andx"] }
+> ```
+
 ## 快速开始
 
 ```csharp
+using System;
 using AndX;
 using AndX.Unity;
 
@@ -30,7 +64,7 @@ AndX.Config.InitLocal();                       // 默认 http://127.0.0.1:6699
 ShareResult result = await AndX.Share.UploadAsync(
     new TexturePayload(screenshot),                                        // 或 FilePathPayload / ByteArrayPayload
     new UploadOptions { Title = "展项截图" },
-    progress: p => Debug.Log($"[AndX] {p.Percent:P0}"));
+    progress: new Progress<UploadProgress>(p => Debug.Log($"[AndX] {p.Percent:P0}")));
 
 // 3) 服务端出图，端侧只下载显示
 DisplayQRCode.texture = await result.LoadQrTextureAsync();
@@ -39,6 +73,22 @@ DisplayQRCode.texture = await result.LoadQrTextureAsync();
 > 上传对调用方透明：`payload.Length ≤ ChunkSize` 走一次性透传，服务端上限更小时自动回退分片；大文件自动分片续传。
 > **参数最小化**：默认只认本机 Edge（`InitLocal()`）；`EdgeKey` / `AccessToken` 仅「绕过 Edge 直连后端」等高级场景才需要；`exhibitId` 缺省由 Edge / 服务端 `ANDX_EDGE_EXHIBIT_ID` 提供（一个 Edge 服务多展项时才显式传入）。
 > **定价不由端侧决定**：`UploadOptions` 没有价格字段，价格由服务端/管理后台配置。
+
+## 示例（Samples）
+
+包内示例按能力域分为四个，在 **Window > Package Manager** 里选中 **AndX** → **Samples** → **Import**，
+导入后位于 `Assets/Samples/AndX/<版本>/<示例名>/`：
+
+| 示例 | 覆盖能力 | 形态 |
+|------|----------|------|
+| **AndX Demo** | `Config.InitLocal()` → `Share.UploadAsync` → `LoadQrTextureAsync` 出码 | 可运行场景 `QRCodePreview` |
+| **Scan And Download** | `Share.ResolveAsync`（预览 / 定价 / 是否已购）、`Share.GetDownloadAsync`（下载授权） | 脚本 |
+| **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → 产物出码 | 脚本 |
+| **Pay Ticket** | `Pay.CreateTicketAsync` 付费票据、`Pay.QueryOrderAsync` 订单状态 | 脚本 |
+
+> 脚本型示例导入后把组件挂到场景任意 GameObject，Play 模式下经 Inspector 齿轮菜单（`ContextMenu`）触发。
+> 示例都按「零配置接入本机 AndXEdge」编写，运行前请先在本机启动 AndXEdge（默认 `http://127.0.0.1:6699`）；
+> 示例资源随包带 `.meta`，导入时 GUID 不变，`QRCodePreview` 场景内的脚本与贴图引用不会丢。
 
 ## 常见场景
 
@@ -98,7 +148,7 @@ if (job.Status == AndXContract.AIJobStatuses.Succeeded)
 // 需要更多控制时用对象重载（尺寸 / 数量 / 幂等键 / 参考图 / 进度）
 AIJob styled = await AndX.AI.GenerateImageAsync(
     new AIImageRequest { Prompt = "赛博朋克城市夜景", Size = "1024x1024" },
-    progress: j => Debug.Log($"[AndX.AI] {j.Status}"));
+    progress: new Progress<AIJob>(j => Debug.Log($"[AndX.AI] {j.Status}")));
 ```
 
 > 异步用法：`CreateImageJobAsync` 提交拿 `jobNo`，再 `GetJobAsync` / `WaitForJobAsync` 轮询，`CancelJobAsync` 取消（仅 `PENDING` 生效）。
@@ -129,7 +179,7 @@ catch (AndXException e)
 ## 平台与线程注意
 
 - **主线程**：`LoadQrTextureAsync()` 依赖 `UnityWebRequest`，必须在主线程调用。
-- **进度回调线程**：`IProgress` 回调可能不在主线程，回调内请勿直接操作 `UnityEngine.UI`；需要更新 UI 时请派发回主线程（示例中的 `Debug.Log` 是安全的）。
+- **进度回调线程**：`IProgress` 回调线程取决于传入的实现；用 `new System.Progress<T>(...)` 时它在构造处捕获同步上下文（主线程构造即回调回主线程，可安全刷新 UI），自定义实现需自行派发回主线程。
 - **WebGL**：强制 `https`；只能使用内存/纹理载荷。
 - **密钥**：插件默认不持密钥——鉴权凭据（`EdgeKey`）存于本机 AndXEdge，由 Edge 注入；仅「绕过 Edge 直连后端」时才需 `EdgeKey`，且只经环境变量注入，切勿写入代码或打进包体。
 
@@ -148,4 +198,4 @@ catch (AndXException e)
 | `AndX.AI` | `GetCapabilitiesAsync` / `CreateImageJobAsync` / `GetJobAsync` / `CancelJobAsync` / `WaitForJobAsync` / `GenerateImageAsync` |
 | `AndX.Unity` | `TexturePayload` / `FilePathPayload` / `ByteArrayPayload` / `LoadQrTextureAsync()` |
 
-完整接口与平台说明见仓库文档 `docs/design/implementation.md` §10。
+完整接口与平台说明见 AndX 主仓文档 `docs/design/implementation.md` §10。

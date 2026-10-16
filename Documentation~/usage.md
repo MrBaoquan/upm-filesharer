@@ -49,9 +49,26 @@ https://github.com/MrBaoquan/upm-filesharer.git
 
 > 也可将 `unity/com.parful.andx` 以本地（embedded）方式放入工程的 `Packages/` 目录。嵌入安装时，插件自带的引擎侧测试（`Tests/Editor`、`Tests/Runtime`）会被自动发现。
 
+### 2.1 包内示例（Samples）
+
+Package Manager → 选中 **AndX** → **Samples** → **Import**，导入后位于 `Assets/Samples/AndX/<版本>/<示例名>/`。
+
+| 示例 | 覆盖能力 | 形态 |
+|------|----------|------|
+| **AndX Demo** | `Config.InitLocal()` → `Share.UploadAsync` → `LoadQrTextureAsync` | 可运行场景 `QRCodePreview` |
+| **Scan And Download** | `Share.ResolveAsync`（预览 / 定价 / 是否已购）、`Share.GetDownloadAsync`（下载授权） | 脚本 |
+| **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → `Share.IssueResourceTicketAsync` 出码 | 脚本 |
+| **Pay Ticket** | `Pay.CreateTicketAsync`、`Pay.QueryOrderAsync` | 脚本 |
+
+- 脚本型示例：把组件挂到场景任意 GameObject，Play 模式下经 Inspector 的齿轮菜单（`ContextMenu`）触发对应方法。
+- 示例资源随包带 `.meta`，导入时 GUID 保持不变，`QRCodePreview` 场景里的脚本与贴图引用不会丢。
+- 示例一律按「零配置接入本机 AndXEdge」编写，需先在本机启动 AndXEdge（默认 `http://127.0.0.1:6699`）。
+- 想直连后端 / 自定义基址：示例 1 的 Inspector 里填 `endpoint` 即可（`EdgeKey` 只从环境变量 `ANDX_EDGE_KEY` 取，不入包）。
+
 ## 3. 快速开始
 
 ```csharp
+using System;
 using AndX;
 using AndX.Unity;
 using UnityEngine;
@@ -67,7 +84,7 @@ public class AndXQuickStart : MonoBehaviour
         ShareResult result = await AndX.Share.UploadAsync(
             new TexturePayload(screenshot),                                  // 或 FilePathPayload / ByteArrayPayload
             new UploadOptions { Title = "展项截图" },
-            progress: p => Debug.Log($"[AndX] {p.Percent:P0}"));
+            progress: new Progress<UploadProgress>(p => Debug.Log($"[AndX] {p.Percent:P0}")));
 
         // 3) 服务端出图，端侧只下载显示
         qrDisplay.texture = await result.LoadQrTextureAsync();
@@ -125,9 +142,11 @@ AndX.Config.Init(new AndXOptions
 ShareResult result = await AndX.Share.UploadAsync(
     payload,
     new UploadOptions { ExhibitId = "1024", Title = "宣传片", MediaType = MediaType.Video },
-    progress: p => Debug.Log($"{p.Sent}/{p.Total} ({p.Percent:P0})"),
+    progress: new Progress<UploadProgress>(p => Debug.Log($"{p.Sent}/{p.Total} ({p.Percent:P0})")),
     cancellationToken: ct);
 ```
+
+- **进度回调**：`IProgress<T>` 是接口，不能直接传 lambda/方法组，需包一层 `new Progress<T>(...)`（或自定义实现）；详见[平台与线程](#10-平台与线程)。
 
 - **分流**：`payload.Length ≤ ChunkSize` 走一次性透传（少两次往返）；更大自动分片流式续传。服务端单次上限更小时，SDK 会回退分片（处理 `413`）。
 - **续传**：分片上传以对象存储已接收字节为准对齐续传偏移，失败**不自动中止**，保留会话便于重试；确认放弃时调用 `AbortAsync(uploadId)`。
@@ -233,10 +252,12 @@ AIJob handle = await AndX.AI.CreateImageJobAsync(new AIImageRequest { Prompt = p
 AIJob done = await AndX.AI.WaitForJobAsync(
     handle.JobNo,
     waitOptions: new AIWaitOptions { Timeout = TimeSpan.FromMinutes(3) },
-    progress:    j => Debug.Log($"[AndX.AI] {j.Status}"));
+    progress:    new Progress<AIJob>(j => Debug.Log($"[AndX.AI] {j.Status}")));
 
 await AndX.AI.CancelJobAsync(handle.JobNo);   // 用户中途放弃（仅 PENDING 有效）
 ```
+
+> `progress` 参数类型是 `IProgress<AIJob>`（接口），需 `new Progress<AIJob>(...)` 包一层，不能直接传 lambda。
 
 ```csharp
 // 同参幂等复用
@@ -325,7 +346,7 @@ SDK 侧（`AndXContract.SdkErrorCodes`）：
 ## 10. 平台与线程
 
 - **主线程**：`LoadQrTextureAsync()` 依赖 `UnityWebRequest`，必须在主线程调用。
-- **进度回调线程**：`IProgress` 回调**可能不在主线程**，回调内请勿直接操作 `UnityEngine.UI`；需要更新 UI 时请派发回主线程（示例中的 `Debug.Log` 是安全的）。
+- **进度回调线程**：`IProgress` 回调线程取决于传入的实现——`new System.Progress<T>(...)` 在构造处捕获同步上下文（主线程构造即回调回主线程，可直接刷新 UI）；自定义实现需自行派发回主线程。
 - **传输已编组回主线程**：`AndX.Unity` 启动时（`RuntimeInitializeOnLoadMethod`）登记主线程上下文，传输层据此把 Unity API 调用编组回主线程，业务代码可安全 `await`。
 - **WebGL**：强制 `https`；只能使用 `TexturePayload` / `ByteArrayPayload`，`FilePathPayload` 运行时会抛配置错误。
 - **密钥**：插件默认不持密钥——`EdgeKey` 存于本机 AndXEdge，由 Edge 注入；仅「绕过 Edge 直连后端」时才需显式提供，且只经环境变量注入，切勿写入代码或打进包体。
