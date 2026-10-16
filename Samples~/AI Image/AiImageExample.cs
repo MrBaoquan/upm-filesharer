@@ -38,11 +38,17 @@ namespace AndX.Samples
         public string endpoint = "";
 
         [Header("参考图（相对 Assets/StreamingAssets/）")]
-        [Tooltip("人脸图（第 1 张参考图）：人物的脸从这里来")]
-        public string faceImagePath = "人脸.png";
+        [Tooltip("人脸图（相对 Assets/StreamingAssets/）：**留空=用示例自带的 faceImage**（现场换图无需重编则填这里）")]
+        public string faceImagePath = "";
 
-        [Tooltip("模板图（第 2 张参考图）：把脸换到这张图上")]
-        public string templateImagePath = "模板.png";
+        [Tooltip("模板图（相对 Assets/StreamingAssets/）：**留空=用示例自带的 templateImage**")]
+        public string templateImagePath = "";
+
+        [Tooltip("示例自带的人脸图（随包分发，场景里已挂好）")]
+        public Texture2D faceImage;
+
+        [Tooltip("示例自带的模板图（随包分发，场景里已挂好）")]
+        public Texture2D templateImage;
 
         [Tooltip("参考图长边上限（px）：越小上传/生成越快，建议 1024~1536")]
         public int referenceMaxEdge = 1280;
@@ -141,11 +147,15 @@ namespace AndX.Samples
                 // ① 读参考图（IO 并行）→ 缩放 + JPEG 编码（主线程）→ base64
                 SetStatus("读取参考图…");
                 var refSw = Stopwatch.StartNew();
-                Task<byte[]> faceIo = ReadStreamingAssetAsync(faceImagePath);
-                Task<byte[]> templateIo = ReadStreamingAssetAsync(templateImagePath);
+                Task<byte[]> faceIo = string.IsNullOrEmpty(faceImagePath)
+                    ? Task.FromResult<byte[]>(null)
+                    : ReadStreamingAssetAsync(faceImagePath);
+                Task<byte[]> templateIo = string.IsNullOrEmpty(templateImagePath)
+                    ? Task.FromResult<byte[]>(null)
+                    : ReadStreamingAssetAsync(templateImagePath);
                 byte[][] raw = await Task.WhenAll(faceIo, templateIo);
-                string face = EncodeReference(raw[0], faceImagePath);
-                string template = EncodeReference(raw[1], templateImagePath);
+                string face = EncodeReference(raw[0], faceImage, "人脸");
+                string template = EncodeReference(raw[1], templateImage, "模板");
                 refSw.Stop();
 
                 // ② 提交任务（两段式：先拿 jobNo，再轮询——这样才能分别计量「提交」与「等待」）
@@ -348,19 +358,41 @@ namespace AndX.Samples
 #endif
         }
 
-        /// <summary>缩放（长边 ≤ referenceMaxEdge）→ JPEG → base64（主线程：纹理操作）。</summary>
-        private string EncodeReference(byte[] raw, string label)
+        /// <summary>
+        /// 缩放（长边 ≤ referenceMaxEdge）→ JPEG → **带 data: 前缀的 base64**（主线程：纹理操作）。
+        ///
+        /// 来源二选一：给了 StreamingAssets 相对路径就用文件（现场可换图），否则用示例自带的 <see cref="Texture2D"/>。
+        /// 服务端同时兼容「裸 base64」，但带上前缀更规范（也便于将来直传厂商）。
+        /// </summary>
+        private string EncodeReference(byte[] raw, Texture2D builtIn, string label)
         {
-            var source = new Texture2D(2, 2, TextureFormat.RGBA32, false);
-            if (!source.LoadImage(raw))
+            Texture2D source;
+            string sizeText;
+            if (raw != null && raw.Length > 0)
             {
-                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, $"参考图解码失败：{label}");
+                source = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (!source.LoadImage(raw))
+                {
+                    throw new AndXException(AndXContract.SdkErrorCodes.Configuration, $"参考图解码失败：{label}");
+                }
+                sizeText = $"{raw.Length / 1024}KB";
+            }
+            else
+            {
+                if (builtIn == null)
+                {
+                    throw new AndXException(
+                        AndXContract.SdkErrorCodes.Configuration,
+                        $"参考图未配置：请挂「{label}」纹理，或在 Inspector 填 StreamingAssets 相对路径");
+                }
+                source = builtIn;
+                sizeText = "示例自带";
             }
             var scaled = Downscale(source, Mathf.Max(256, referenceMaxEdge));
             var jpeg = scaled.EncodeToJPG(Mathf.Clamp(referenceJpegQuality, 1, 100));
-            Debug.Log($"[AndX.AI] 参考图 {label}：{source.width}x{source.height} {raw.Length / 1024}KB → "
+            Debug.Log($"[AndX.AI] 参考图 {label}：{source.width}x{source.height}（{sizeText}）→ "
                 + $"{scaled.width}x{scaled.height} JPEG {jpeg.Length / 1024}KB（base64 后约 {jpeg.Length * 4 / 3 / 1024}KB）");
-            return Convert.ToBase64String(jpeg);
+            return "data:image/jpeg;base64," + Convert.ToBase64String(jpeg);
         }
 
         private static Texture2D Downscale(Texture2D source, int maxEdge)

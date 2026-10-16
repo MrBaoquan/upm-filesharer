@@ -303,11 +303,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   accessMode: 0
   endpoint: 
-  prompt: "\u8D5B\u535A\u670B\u514B\u57CE\u5E02\u591C\u666F\uFF0C\u9713\u8679\u53CD\u5149\uFF0C\u8D85\u5E7F\u89D2"
+  prompt: "\u628A\u7B2C 1 \u5F20\u56FE\u4E2D\u4EBA\u7269\u7684\u9762\u90E8\u81EA\u7136\u878D\u5408\u5230\u7B2C 2 \u5F20\u6A21\u677F\u753B\u9762\u91CC\uFF0C\u4FDD\u6301\u6A21\u677F\u7684\u6784\u56FE\u3001\u5149\u7EBF\u4E0E\u98CE\u683C\uFF0C\u4EBA\u8138\u6BD4\u4F8B\u4E0E\u89D2\u5EA6\u5339\u914D\uFF0C\u9AD8\u6E05\u5199\u5B9E"
   size: 
   imageCount: 1
   exhibitId: 
+  faceImagePath: "\u4EBA\u8138.png"
+  templateImagePath: "\u6A21\u677F.png"
+  referenceMaxEdge: 1280
+  referenceJpegQuality: 85
+  pollIntervalMs: 700
   ResultImage: {fileID: 1600000045}
+  faceImage: {fileID: 2800000, guid: 008d62fa1b3f46d78265ca2697321015, type: 3}
+  templateImage: {fileID: 2800000, guid: 9bd4a9af1d374740993fc3fd6f81e7a2, type: 3}
   DisplayQRCode: {fileID: 1600000012}
   StatusText: {fileID: 1600000034}
   resultIndex: 0
