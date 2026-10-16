@@ -91,6 +91,19 @@ namespace AndX.Core
             }
         }
 
+        /// <summary>AI 文字场景（镜像服务端 ai-text-scenarios.ts；不传=原始接口，只给 Prompt）。</summary>
+        public static class AITextScenarios
+        {
+            /// <summary>藏头诗：params.head=藏头字（必填）、params.topic=主题（可选）；服务端逐句校验首字。</summary>
+            public const string Acrostic = "acrostic";
+
+            /// <summary>求签 / 解签：params.wish=所求之事（必填）、params.drawNo=指定签号（可选，留空=随机抽签）。</summary>
+            public const string Fortune = "fortune";
+
+            /// <summary>祝福 / 赠言：params.topic=主题（必填）、params.to=送给谁（可选）。</summary>
+            public const string Blessing = "blessing";
+        }
+
         /// <summary>AI 生图场景（镜像服务端 ai-scenarios.ts；不传=原始接口）。</summary>
         public static class AIScenarios
         {

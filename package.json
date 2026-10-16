@@ -41,6 +41,11 @@
       "displayName": "Pay Ticket",
       "description": "展项付费票据签发与订单状态查询；接入方式可在 Inspector 选择（默认直连）（含可运行场景 PayTicket）",
       "path": "Samples~/Pay Ticket"
+    },
+    {
+      "displayName": "AI Text",
+      "description": "单轮文字互动：藏头诗 / 求签解签 / 祝福赠言（同步返回，无需轮询；输出校验在服务端）（含可运行场景 AiText）",
+      "path": "Samples~/AI Text"
     }
   ]
 }

@@ -249,6 +249,91 @@ namespace AndX
         public string IdemKey { get; set; }
     }
 
+    /// <summary>语料条目（如求签签文）：由服务端从语料池给出，端侧可直接展示。</summary>
+    public sealed class AICorpusEntry
+    {
+        /// <summary>签号（数字或字符串，故用 string 承载）。</summary>
+        public string No { get; set; }
+
+        /// <summary>吉凶等级（如 上吉 / 中平；可能为空）。</summary>
+        public string Level { get; set; }
+
+        /// <summary>签诗原文（服务端注入模型，模型不得改写）。</summary>
+        public string Poem { get; set; }
+
+        /// <summary>掌故 / 解读要点（可能为空）。</summary>
+        public string Note { get; set; }
+    }
+
+    /// <summary>单轮文字生成请求（藏头诗 / 解签 / 祝福）。</summary>
+    public sealed class AITextRequest
+    {
+        /// <summary>
+        /// 场景（可选，见 <see cref="AndX.Core.AndXContract.AITextScenarios"/>）：
+        /// 传了场景可省略 <see cref="Prompt"/>（用场景声明的人设与模板），并能得到服务端的**输出校验**
+        /// （如藏头诗逐句校验首字）；**不传=完全按原始接口**（只给 Prompt）。
+        /// </summary>
+        public string Scenario { get; set; }
+
+        /// <summary>场景槽位（head=藏头字 / topic=主题 / wish=所求 / to=送给谁 / drawNo=指定签号）。</summary>
+        public System.Collections.Generic.IDictionary<string, object> Params { get; set; }
+
+        /// <summary>原始接口模式的提示词（不传场景时必填）。</summary>
+        public string Prompt { get; set; }
+
+        /// <summary>展项 ID（可选）：缺省用 <see cref="AndXOptions.ExhibitId"/>，都为空则由 Edge / 服务端兜底。</summary>
+        public string ExhibitId { get; set; }
+    }
+
+    /// <summary>
+    /// 单轮文字生成结果（**同步返回**，无任务号、无需轮询）。
+    ///
+    /// 关键字段：
+    /// - <see cref="Text"/>：最终文案（若 <see cref="FallbackUsed"/> 为 true，则是服务端的兜底文案）；
+    /// - <see cref="CorpusEntry"/>：命中语料池时的条目（如求签签文，端侧可直接展示签诗）；
+    /// - <see cref="Attempts"/> / <see cref="Violations"/>：为了"藏头没藏住"这类强约束重试了几次、卡在哪，
+    ///   后台排障与现场日志都靠它。
+    /// </summary>
+    public sealed class AITextResult
+    {
+        public string Capability { get; set; }
+
+        public string Scenario { get; set; }
+
+        public string Model { get; set; }
+
+        public string Text { get; set; }
+
+        /// <summary>厂商口径的 token 用量（已按 token 计入展项用量台账）。</summary>
+        public int Tokens { get; set; }
+
+        public int PromptTokens { get; set; }
+
+        public int CompletionTokens { get; set; }
+
+        /// <summary>实际请求次数（含因输出不合规而重试的次数）。</summary>
+        public int Attempts { get; set; }
+
+        /// <summary>true = 模型输出始终不合规，上屏的是服务端兜底文案（藏头诗这类场景不会兜底，会直接报错）。</summary>
+        public bool FallbackUsed { get; set; }
+
+        /// <summary>未通过的约束说明（仅 FallbackUsed 时有值，便于排查提示词）。</summary>
+        public System.Collections.Generic.List<string> Violations { get; set; }
+
+        public AICorpusEntry CorpusEntry { get; set; }
+
+        /// <summary>厂商结束原因（length = 被 max_tokens 截断；推理模型常见）。</summary>
+        public string FinishReason { get; set; }
+
+        /// <summary>是否已计入展项用量台账（后台"试跑"为 false：不占配额、不进台账）。</summary>
+        public bool Metered { get; set; }
+
+        /// <summary>计入归属的展项（试跑为空）。</summary>
+        public string ExhibitId { get; set; }
+
+        public System.DateTimeOffset? CreatedAt { get; set; }
+    }
+
     /// <summary>AI 生成任务。</summary>
     public sealed class AIJob
     {

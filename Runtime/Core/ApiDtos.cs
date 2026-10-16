@@ -93,6 +93,22 @@ namespace AndX.Core
         public string IdemKey { get; set; }
     }
 
+    /// <summary>单轮文字生成请求（同步返回；不含密钥、不含定价）。</summary>
+    internal sealed class CreateAITextRequest
+    {
+        public string Capability { get; set; }
+
+        /// <summary>场景键（acrostic / fortune / blessing）；与 Prompt 二选一。</summary>
+        public string Scenario { get; set; }
+
+        /// <summary>场景槽位（head / topic / wish / to / drawNo…）。</summary>
+        public IDictionary<string, object> Params { get; set; }
+
+        /// <summary>原始接口模式：直接给提示词。</summary>
+        public string Prompt { get; set; }
+
+        public string ExhibitId { get; set; }
+    }
     /// <summary>生图参数（仅透传，端侧不定价、不选供应商）。</summary>
     internal sealed class AIImageOptions
     {

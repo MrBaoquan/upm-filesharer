@@ -57,6 +57,62 @@ namespace AndX
             return created;
         }
 
+        /// <summary>
+        /// **单轮文字生成**（藏头诗 / 解签 / 祝福）：**同步返回**，不落任务队列、无需轮询、无产物文件。
+        ///
+        /// 与生图的差别：文字秒级返回，所以没有 jobNo、也不登记 media；但同样走
+        /// 「能力门禁 + 限流 + 配额 + token 计量」，并且**输出校验由服务端做**
+        /// （藏头诗会逐句校验首字，不合格自动带纠正提示重试一次；仍不合格按场景声明兜底或报错）。
+        /// </summary>
+        public static async Task<AITextResult> GenerateTextAsync(
+            AITextRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request == null)
+            {
+                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "AITextRequest 不能为空");
+            }
+            if (string.IsNullOrEmpty(request.Scenario) && string.IsNullOrEmpty(request.Prompt))
+            {
+                throw new AndXException(
+                    AndXContract.SdkErrorCodes.Configuration,
+                    "缺少 Scenario 或 Prompt（场景模式给 Scenario + Params；原始接口模式直接给 Prompt）");
+            }
+
+            var exhibitId = Config.ResolveExhibitId(request.ExhibitId);
+            var dto = new CreateAITextRequest
+            {
+                Capability = AndXContract.AICapabilities.TextGenerate,
+                Scenario = string.IsNullOrEmpty(request.Scenario) ? null : request.Scenario,
+                Params = request.Params,
+                Prompt = string.IsNullOrEmpty(request.Prompt) ? null : request.Prompt,
+                ExhibitId = string.IsNullOrEmpty(exhibitId) ? null : exhibitId,
+            };
+            var data = await Config.Api
+                .PostRawAsync(AndXContract.Paths.AITextPath, dto, cancellationToken)
+                .ConfigureAwait(false);
+            return data.ToObject<AITextResult>(AndXJson.Serializer) ?? new AITextResult();
+        }
+
+        /// <summary>单轮文字生成（便捷入口）：给场景 + 槽位即可；也可不传场景、只给 prompt。</summary>
+        public static Task<AITextResult> GenerateTextAsync(
+            string scenario,
+            System.Collections.Generic.IDictionary<string, object> parameters = null,
+            string prompt = null,
+            string exhibitId = null,
+            CancellationToken cancellationToken = default)
+        {
+            return GenerateTextAsync(
+                new AITextRequest
+                {
+                    Scenario = scenario,
+                    Params = parameters,
+                    Prompt = prompt,
+                    ExhibitId = exhibitId,
+                },
+                cancellationToken);
+        }
+
         /// <summary>查询任务状态与结果（SUCCEEDED 时返回 mediaId / urls）。</summary>
         public static Task<AIJob> GetJobAsync(string jobNo, CancellationToken cancellationToken = default)
         {
