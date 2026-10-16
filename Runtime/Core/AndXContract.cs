@@ -88,6 +88,19 @@ namespace AndX.Core
             }
         }
 
+        /// <summary>AI 生图场景（镜像服务端 ai-scenarios.ts；不传=原始接口）。</summary>
+        public static class AIScenarios
+        {
+            /// <summary>文生图：只给提示词。</summary>
+            public const string TextToImage = "t2i";
+
+            /// <summary>风格化：单图 + 风格词（params.style）。</summary>
+            public const string Style = "style";
+
+            /// <summary>换脸/融合：人脸 + 模板（出图尺寸由服务端按模板比例换算，不变形）。</summary>
+            public const string FaceSwap = "face_swap";
+        }
+
         /// <summary>票据用途。</summary>
         public static class Purposes
         {

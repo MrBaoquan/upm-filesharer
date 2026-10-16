@@ -120,6 +120,38 @@ namespace AndX
             return job;
         }
 
+        /// <summary>
+        /// **场景化一步生图**：`scenario`（t2i / style / face_swap）+ `inputs`（如 images 的 data URL 数组）。
+        ///
+        /// 与原始接口的关系：底层仍是同一个 `ai.image.generate`，只是由服务端按场景补齐/校验
+        /// 提示词、出图尺寸与比例（例如换脸按模板比例出图，避免变形）。**不传 scenario 时行为与原来完全一致。**
+        /// </summary>
+        public static Task<AIJob> GenerateScenarioAsync(
+            string scenario,
+            System.Collections.Generic.IDictionary<string, object> inputs = null,
+            System.Collections.Generic.IDictionary<string, object> parameters = null,
+            string exhibitId = null,
+            AIWaitOptions waitOptions = null,
+            IProgress<AIJob> progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrEmpty(scenario))
+            {
+                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "scenario 不能为空");
+            }
+            return GenerateImageAsync(
+                new AIImageRequest
+                {
+                    Scenario = scenario,
+                    Input = inputs,
+                    Params = parameters,
+                    ExhibitId = exhibitId,
+                },
+                waitOptions,
+                progress,
+                cancellationToken);
+        }
+
         /// <summary>一步生图（最小参数）：仅需提示词。</summary>
         public static Task<AIJob> GenerateImageAsync(
             string prompt,

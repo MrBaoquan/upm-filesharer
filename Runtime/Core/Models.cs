@@ -220,7 +220,16 @@ namespace AndX
     /// <summary>生图任务提交参数（不含密钥、不含定价）。</summary>
     public sealed class AIImageRequest
     {
-        /// <summary>提示词（必填）。</summary>
+        /// <summary>
+        /// 场景（可选，见 <see cref="AndX.Core.AndXContract.AIScenarios"/>）：传了场景可省略 <see cref="Prompt"/>
+        /// （用场景提示词模板），并能得到"按比例出图"等场景保护；**不传=完全按原始接口**。
+        /// </summary>
+        public string Scenario { get; set; }
+
+        /// <summary>场景参数（如 style / aspectRatio / longEdge / size）；原始接口下可忽略。</summary>
+        public System.Collections.Generic.IDictionary<string, object> Params { get; set; }
+
+        /// <summary>提示词（原始接口模式下必填；传了场景可省略）。</summary>
         public string Prompt { get; set; }
 
         /// <summary>展项 ID（可选）：缺省用 <see cref="AndXOptions.ExhibitId"/>，都为空则由 Edge / 服务端兜底。</summary>
