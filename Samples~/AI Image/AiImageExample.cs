@@ -63,8 +63,11 @@ namespace AndX.Samples
         [Tooltip("提示词：默认是「把第 1 张图的人脸融合到第 2 张模板」")]
         public string prompt = "把第 1 张图中人物的面部自然融合到第 2 张模板画面里，保持模板的构图、光线与风格，人脸比例与角度匹配，高清写实";
 
-        [Tooltip("尺寸（可选），如 1024x1024；留空由服务端 / 模型决定")]
+        [Tooltip("尺寸覆盖（可选），如 1024x1024；**留空则按所选模板的原始比例自动换算**（避免换脸后变形）")]
         public string size = "";
+
+        [Tooltip("出图长边像素（按模板比例换算；0 = 由服务端决定）：建议 1024~1536")]
+        public int outputLongEdge = 1024;
 
         [Tooltip("生成张数（可选）：1 起；0 = 由服务端决定。>1 时用「下一张 / 上一张」切换")]
         public int imageCount = 1;
@@ -159,8 +162,14 @@ namespace AndX.Samples
                     ? Task.FromResult<byte[]>(null)
                     : ReadStreamingAssetAsync(templatePick.Path);
                 byte[][] raw = await Task.WhenAll(faceIo, templateIo);
-                string face = EncodeReference(raw[0], facePick.Texture, facePick.Label);
-                string template = EncodeReference(raw[1], templatePick.Texture, templatePick.Label);
+                EncodedReference faceRef = EncodeReference(raw[0], facePick.Texture, facePick.Label);
+                EncodedReference templateRef = EncodeReference(raw[1], templatePick.Texture, templatePick.Label);
+                string face = faceRef.Base64;
+                string template = templateRef.Base64;
+                // 关键：按**模板原始比例**换算出图尺寸，避免换脸结果被拉伸变形
+                string resolvedSize = string.IsNullOrEmpty(size)
+                    ? SizeForTemplate(templateRef.Width, templateRef.Height)
+                    : size;
                 refSw.Stop();
 
                 // ② 提交任务（两段式：先拿 jobNo，再轮询——这样才能分别计量「提交」与「等待」）
@@ -169,7 +178,7 @@ namespace AndX.Samples
                 AIJob job = await AndX.AI.CreateImageJobAsync(new AIImageRequest
                 {
                     Prompt = prompt,
-                    Size = string.IsNullOrEmpty(size) ? null : size,
+                    Size = resolvedSize,
                     Count = imageCount > 0 ? imageCount : (int?)null,
                     ExhibitId = string.IsNullOrEmpty(exhibitId) ? null : exhibitId,
                     Input = new Dictionary<string, object> { ["images"] = new[] { face, template } },
@@ -404,13 +413,87 @@ namespace AndX.Samples
 #endif
         }
 
+        /// <summary>一次参考图编码结果（base64 + 缩放后尺寸，尺寸用于按比例算出图规格）</summary>
+        private readonly struct EncodedReference
+        {
+            public EncodedReference(string base64, int width, int height)
+            {
+                Base64 = base64;
+                Width = width;
+                Height = height;
+            }
+
+            public string Base64 { get; }
+            public int Width { get; }
+            public int Height { get; }
+        }
+
+        /// <summary>厂商生图尺寸下限：面积必须 ≥ 921,600 像素（豆包/方舟实测报错 "image area must be at least 921600 pixels"）</summary>
+        private const long MinImageArea = 921_600;
+
+        /// <summary>出图长边上限（避免超大图耗时/费用失控）</summary>
+        private const int MaxLongEdge = 2048;
+
+        /// <summary>
+        /// 按模板**原始比例**算出出图尺寸，同时满足厂商约束（面积 ≥ 921,600、长边 ≤ 2048），宽高取 8 的倍数。
+        ///
+        /// 为什么必须这么做：换脸/融合时若出图规格与模板比例不同，模型会把模板拉伸 → 现场看到的图"变形"。
+        /// （示例早前固定传 1280x720，遇到竖版模板就会明显变形。）
+        /// </summary>
+        private string SizeForTemplate(int templateWidth, int templateHeight)
+        {
+            if (templateWidth <= 0 || templateHeight <= 0)
+            {
+                return null;   // 拿不到模板尺寸时交给服务端 / 模型决定
+            }
+            var longest = Math.Max(templateWidth, templateHeight);
+            var targetLongEdge = outputLongEdge > 0 ? Math.Min(outputLongEdge, MaxLongEdge) : MaxLongEdge;
+            var scale = (double)targetLongEdge / longest;
+            var width = RoundUp8(templateWidth * scale);
+            var height = RoundUp8(templateHeight * scale);
+
+            // 面积不足则**等比**放大（保持比例），再向上取整到 8 的倍数，直到满足下限
+            var area = (long)width * height;
+            if (area < MinImageArea)
+            {
+                var factor = Math.Sqrt((double)MinImageArea / area);
+                width = RoundUp8(width * factor);
+                height = RoundUp8(height * factor);
+                while ((long)width * height < MinImageArea)
+                {
+                    width = RoundUp8(width + 8);
+                    height = RoundUp8(height + 8);
+                }
+            }
+
+            // 长边上限保护（等比缩小）
+            if (Math.Max(width, height) > MaxLongEdge)
+            {
+                var factor = (double)MaxLongEdge / Math.Max(width, height);
+                width = RoundUp8(width * factor);
+                height = RoundUp8(height * factor);
+            }
+
+            var result = width + "x" + height;
+            Debug.Log(
+                $"[AndX.AI] 模板 {templateWidth}x{templateHeight}（比例 {(double)templateWidth / templateHeight:F3}）→ 出图尺寸 {result}"
+                + $"（比例 {(double)width / height:F3}，面积 {(long)width * height}，同比例不变形）");
+            return result;
+        }
+
+        private static int RoundUp8(double value)
+        {
+            var rounded = (int)Math.Ceiling(value / 8.0) * 8;
+            return Math.Max(64, rounded);
+        }
+
         /// <summary>
         /// 缩放（长边 ≤ referenceMaxEdge）→ JPEG → **带 data: 前缀的 base64**（主线程：纹理操作）。
         ///
         /// 来源二选一：给了 StreamingAssets 相对路径就用文件（现场可换图），否则用示例自带的 <see cref="Texture2D"/>。
         /// 服务端同时兼容「裸 base64」，但带上前缀更规范（也便于将来直传厂商）。
         /// </summary>
-        private string EncodeReference(byte[] raw, Texture2D builtIn, string label)
+        private EncodedReference EncodeReference(byte[] raw, Texture2D builtIn, string label)
         {
             Texture2D source;
             string sizeText;
@@ -438,7 +521,7 @@ namespace AndX.Samples
             var jpeg = scaled.EncodeToJPG(Mathf.Clamp(referenceJpegQuality, 1, 100));
             Debug.Log($"[AndX.AI] 参考图 {label}：{source.width}x{source.height}（{sizeText}）→ "
                 + $"{scaled.width}x{scaled.height} JPEG {jpeg.Length / 1024}KB（base64 后约 {jpeg.Length * 4 / 3 / 1024}KB）");
-            return "data:image/jpeg;base64," + Convert.ToBase64String(jpeg);
+            return new EncodedReference("data:image/jpeg;base64," + Convert.ToBase64String(jpeg), scaled.width, scaled.height);
         }
 
         private static Texture2D Downscale(Texture2D source, int maxEdge)
