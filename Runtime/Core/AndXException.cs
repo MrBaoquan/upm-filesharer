@@ -1,6 +1,6 @@
 using System;
 
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>
     /// AndX 统一异常：携带稳定错误码（业务错误码见 <see cref="Core.AndXContract.ErrorCodes"/>，

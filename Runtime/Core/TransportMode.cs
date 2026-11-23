@@ -1,4 +1,4 @@
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>
     /// 共享核实现选择。native 核为后续增量，接入同一 <c>IAndXCore</c> 契约；

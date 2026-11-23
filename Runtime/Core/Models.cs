@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>素材类型。</summary>
     public enum MediaType
@@ -153,6 +153,133 @@ namespace AndX
 
         public string Type { get; set; }
         public string Title { get; set; }
+    }
+
+    /// <summary>反向上传的成品规格：展项侧对最终图片的期望（可选）。</summary>
+    public sealed class ReceiveUploadImageSpec
+    {
+        /// <summary>目标宽高比（宽/高），如 0.75 表示 3:4；null 表示不限制。</summary>
+        public float? Aspect { get; set; }
+
+        /// <summary>是否锁定比例（用户不可改选）；仅 Aspect 非空时有意义。</summary>
+        public bool AspectLocked { get; set; }
+
+        /// <summary>成品最短边（px）；低于该值判为素材不足。</summary>
+        public int MinEdgePx { get; set; } = 720;
+    }
+
+    /// <summary>反向上传选项：插件创建普通二维码，由用户扫码上传图片。</summary>
+    public sealed class ReceiveUploadOptions
+    {
+        /// <summary>展项 ID（可选）：缺省使用全局配置；Hub 节点必须显式提供且已授权。</summary>
+        public string ExhibitId { get; set; }
+
+        /// <summary>单张图片上限（字节）；null 使用服务端配置。</summary>
+        public long? MaxBytes { get; set; }
+
+        /// <summary>二维码有效期（秒）；null 使用服务端配置。</summary>
+        public int? TtlSeconds { get; set; }
+
+        /// <summary>上传页说明 / 素材标题。</summary>
+        public string Title { get; set; }
+
+        /// <summary>成品规格（可选）；null 表示不裁剪、由用户整图上传。</summary>
+        public ReceiveUploadImageSpec ImageSpec { get; set; }
+
+        /// <summary>UniRx 状态轮询间隔，默认 1 秒。</summary>
+        public System.TimeSpan PollInterval { get; set; } = System.TimeSpan.FromSeconds(1);
+
+        /// <summary>
+        /// 等待用户上传的总超时，默认 8 分钟。
+        ///
+        /// 必须覆盖「用户选图 + 调整裁剪 + 上传」的全过程，而不是只覆盖传输：
+        /// 服务端把编辑阶段放在独立的 editWindowSeconds（默认 600s）里，
+        /// 只在用户真正开始上传后才按 ttlSeconds 重新计时。
+        /// 因此这里的默认值取 8 分钟（600s 编辑窗口 + 180s 上传 + 余量）；
+        /// 若显式指定 <see cref="TtlSeconds"/>，取 max(该值 + 编辑余量, 8 分钟)。
+        /// </summary>
+        public System.TimeSpan Timeout { get; set; } = DefaultTimeout;
+
+        /// <summary>编辑窗口预留（秒）：与服务端 editWindowSeconds 默认值一致。</summary>
+        public const int EditWindowSeconds = 600;
+
+        /// <summary>默认总超时：覆盖编辑窗口 + 一次上传。</summary>
+        public static readonly System.TimeSpan DefaultTimeout =
+            System.TimeSpan.FromSeconds(EditWindowSeconds + 180);
+
+        /// <summary>
+        /// 按会话实际有效期推算轮询超时。
+        ///
+        /// 服务端首段有效期是 editWindowSeconds（编辑阶段），
+        /// 用户开始上传后重置为 ttlSeconds；本地等待必须长于前者，
+        /// 否则插件会先于服务端把会话判超时。
+        /// </summary>
+        public System.TimeSpan ResolveTimeout()
+        {
+            var floor = DefaultTimeout;
+            if (!TtlSeconds.HasValue) return Timeout > floor ? Timeout : floor;
+            var needed = System.TimeSpan.FromSeconds(EditWindowSeconds + TtlSeconds.Value);
+            var baseline = Timeout > needed ? Timeout : needed;
+            return baseline > floor ? baseline : floor;
+        }
+    }
+
+    /// <summary>用户反向上传得到的图片。</summary>
+    public sealed class ReceiveUploadMedia
+    {
+        public string Id { get; set; }
+        public string Type { get; set; }
+        public string Title { get; set; }
+
+        /// <summary>短时 presigned 下载地址。</summary>
+        public string DownloadUrl { get; set; }
+
+        /// <summary>下载地址有效期（秒）。</summary>
+        public long ExpiresIn { get; set; }
+    }
+
+    /// <summary>反向上传会话；Completed 时 Media 非空。</summary>
+    public sealed class ReceiveUploadSession
+    {
+        public string SessionId { get; set; }
+
+        /// <summary>WAITING / UPLOADING / PROCESSING / COMPLETED / EXPIRED / CANCELED / FAILED。</summary>
+        public string Status { get; set; }
+
+        public int Version { get; set; }
+        public string MediaType { get; set; }
+        public long MaxBytes { get; set; }
+        public string Title { get; set; }
+
+        /// <summary>成品规格（可选）；null 表示不裁剪。</summary>
+        public ReceiveUploadImageSpec ImageSpec { get; set; }
+
+        /// <summary>普通 HTTPS 上传链接；微信按普通链接规则进入小程序，其他环境打开 H5。</summary>
+        public string UploadUrl { get; set; }
+
+        /// <summary>普通链接二维码 PNG 地址。</summary>
+        public string QrImageUrl { get; set; }
+
+        public System.DateTimeOffset? ExpiresAt { get; set; }
+        public System.DateTimeOffset? CompletedAt { get; set; }
+        public string ErrorCode { get; set; }
+        public ReceiveUploadMedia Media { get; set; }
+
+        public bool IsCompleted
+        {
+            get { return string.Equals(Status, "COMPLETED", System.StringComparison.OrdinalIgnoreCase); }
+        }
+
+        public bool IsTerminal
+        {
+            get
+            {
+                return IsCompleted
+                    || string.Equals(Status, "EXPIRED", System.StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(Status, "CANCELED", System.StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(Status, "FAILED", System.StringComparison.OrdinalIgnoreCase);
+            }
+        }
     }
 
     /// <summary>展项付费票据签发选项。</summary>
@@ -417,6 +544,36 @@ namespace AndX
 
         /// <summary>轮询间隔（默认 2 秒）。</summary>
         public System.TimeSpan Interval { get; set; } = System.TimeSpan.FromSeconds(2);
+    }
+
+    /// <summary>节点心跳结果；<see cref="Command"/> 非空时表示存在待执行的启动/停止兜底指令。</summary>
+    public sealed class NodeHeartbeatResult
+    {
+        public string ServerTime { get; set; }
+        public string State { get; set; }
+        public NodePendingCommand Command { get; set; }
+    }
+
+    /// <summary>心跳取回的展项指令。</summary>
+    public sealed class NodePendingCommand
+    {
+        /// <summary>start / stop。</summary>
+        public string Action { get; set; }
+        public string OrderNo { get; set; }
+        public string CommandId { get; set; }
+        public string SessionId { get; set; }
+        public long? Amount { get; set; }
+        public string At { get; set; }
+    }
+
+    /// <summary>节点状态上报结果。</summary>
+    public sealed class NodeStateResult
+    {
+        public string NodeId { get; set; }
+        public string ExhibitId { get; set; }
+        public string State { get; set; }
+        public string KeyScope { get; set; }
+        public bool Enabled { get; set; }
     }
 
     /// <summary>节点自省结果（<c>AndX.Node.SelfAsync</c>）：我是谁、我能代表哪些展项、当前是否启用。</summary>

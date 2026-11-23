@@ -1,7 +1,7 @@
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace AndX.Unity
+namespace Parful.AndX.Unity
 {
     /// <summary>二维码纹理便捷方法：<c>qrDisplay.texture = await result.LoadQrTextureAsync()</c>。</summary>
     public static class QrTextureExtensions

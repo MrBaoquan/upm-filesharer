@@ -2,7 +2,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 
-namespace AndX.Core
+namespace Parful.AndX.Core
 {
     /// <summary>与服务端线格式一一对应的内部 DTO（仅 core 内部使用）。</summary>
     internal sealed class IssueTicketRequest
@@ -57,6 +57,33 @@ namespace AndX.Core
         public string QrPngUrl { get; set; }
     }
 
+    internal sealed class CreateReceiveUploadRequest
+    {
+        public string ExhibitId { get; set; }
+        public string MediaType { get; set; } = "image";
+        public long? MaxBytes { get; set; }
+        public int? TtlSeconds { get; set; }
+        public string Title { get; set; }
+        public ReceiveUploadImageSpec ImageSpec { get; set; }
+    }
+
+    internal sealed class ReceiveUploadSessionResponse
+    {
+        public string SessionId { get; set; }
+        public string Status { get; set; }
+        public int Version { get; set; }
+        public string MediaType { get; set; }
+        public long MaxBytes { get; set; }
+        public string Title { get; set; }
+        public string UploadUrl { get; set; }
+        public string QrPngUrl { get; set; }
+        public DateTimeOffset? ExpiresAt { get; set; }
+        public DateTimeOffset? CompletedAt { get; set; }
+        public string ErrorCode { get; set; }
+        public ReceiveUploadImageSpec ImageSpec { get; set; }
+        public ReceiveUploadMedia Media { get; set; }
+    }
+
     internal sealed class OrderStatusResponse
     {
         public string OrderNo { get; set; }
@@ -73,7 +100,7 @@ namespace AndX.Core
         public string Name { get; set; }
     }
 
-    /// <summary>节点自助注册响应：<c>secret</c> 仅此一次返回，之后只能轮换。</summary>
+    /// <summary>节点自助注册响应：<c>secret</c> 在本次响应中返回；管理端可在写权限与审计约束下再次查看。</summary>
     internal sealed class EnrollResponse
     {
         public string NodeId { get; set; }

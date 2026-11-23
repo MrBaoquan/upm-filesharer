@@ -1,17 +1,17 @@
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX.Core;
+using Parful.AndX.Core;
 using UnityEngine;
 
-namespace AndX.Unity
+namespace Parful.AndX.Unity
 {
     /// <summary>
     /// AI 产物的端侧便捷方法：**显示**（纹理）与**留存**（落盘）。
     ///
     /// 三条互不排斥的用法：
     /// - **屏幕上直接显示生成结果**：<c>resultImage.texture = await job.LoadResultTextureAsync();</c>
-    /// - **出码让观众扫码带走**：<c>await AndX.Share.IssueResourceTicketAsync(job.MediaId)</c>
+    /// - **出码让观众扫码带走**：<c>await global::AndX.Share.IssueResourceTicketAsync(job.MediaId)</c>
     /// - **把原图存到本地**（留存 / 打印 / 二次加工）：<see cref="SaveAsync(AIJob, int, string, string, CancellationToken)"/>
     ///
     /// 结果图地址是 **presigned（10 分钟有效）**：
@@ -39,7 +39,7 @@ namespace AndX.Unity
         /// <summary>先查任务（拿新的 presigned 地址）再下载纹理：适合长期展示 / 迟到取图。</summary>
         public static async Task<Texture2D> LoadTextureAsync(string jobNo, int index = 0, CancellationToken cancellationToken = default)
         {
-            var bytes = await AndX.AI.GetResultBytesAsync(jobNo, index, cancellationToken).ConfigureAwait(true);
+            var bytes = await global::AndX.AI.GetResultBytesAsync(jobNo, index, cancellationToken).ConfigureAwait(true);
             if (bytes == null || bytes.Length == 0)
             {
                 return null;
@@ -67,7 +67,7 @@ namespace AndX.Unity
             var name = string.IsNullOrEmpty(fileName)
                 ? (job == null || string.IsNullOrEmpty(job.JobNo) ? "ai-job" : job.JobNo) + "-" + index + ".png"
                 : fileName;
-            return AndX.AI.SaveResultAsync(job, index, ResolvePath(directory, name), cancellationToken);
+            return global::AndX.AI.SaveResultAsync(job, index, ResolvePath(directory, name), cancellationToken);
         }
 
         /// <summary>
@@ -86,7 +86,7 @@ namespace AndX.Unity
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "jobNo 不能为空");
             }
             var name = string.IsNullOrEmpty(fileName) ? jobNo + "-" + index + ".png" : fileName;
-            return AndX.AI.SaveResultAsync(jobNo, index, ResolvePath(directory, name), cancellationToken);
+            return global::AndX.AI.SaveResultAsync(jobNo, index, ResolvePath(directory, name), cancellationToken);
         }
 
         private static string ResolvePath(string directory, string fileName)

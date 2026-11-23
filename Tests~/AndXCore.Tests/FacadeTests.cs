@@ -1,11 +1,12 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
+using Parful.AndX;
+using Parful.AndX.Core;
+using Parful.AndX.Aip;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     public class FacadeTests
     {
@@ -16,13 +17,31 @@ namespace AndX.Tests
 
         public FacadeTests()
         {
-            Config.Reset();
+            global::AndX.Config.Reset();
+        }
+
+        [Fact]
+        public void Global_facade_exposes_service_instances()
+        {
+            Assert.NotNull(global::AndX.Config);
+            Assert.NotNull(global::AndX.Share);
+            Assert.NotNull(global::AndX.Pay);
+            Assert.NotNull(global::AndX.AI);
+            Assert.NotNull(global::AndX.Node);
+            Assert.NotNull(global::AndX.ExhibitRuntime);
+
+            Assert.IsType<Config>(global::AndX.Config);
+            Assert.IsType<Share>(global::AndX.Share);
+            Assert.IsType<Pay>(global::AndX.Pay);
+            Assert.IsType<AI>(global::AndX.AI);
+            Assert.IsType<Node>(global::AndX.Node);
+            Assert.IsType<ExhibitRuntime>(global::AndX.ExhibitRuntime);
         }
 
         [Fact]
         public void Init_rejects_null_options()
         {
-            var ex = Assert.Throws<AndXException>(() => Config.Init(null, OkTransport()));
+            var ex = Assert.Throws<AndXException>(() => global::AndX.Config.Init(null, OkTransport()));
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
         }
 
@@ -30,22 +49,22 @@ namespace AndX.Tests
         public void Init_rejects_plain_http_by_default()
         {
             var options = new AndXOptions { Endpoint = "http://internal.local" };
-            var ex = Assert.Throws<AndXException>(() => Config.Init(options, OkTransport()));
+            var ex = Assert.Throws<AndXException>(() => global::AndX.Config.Init(options, OkTransport()));
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
         }
 
         [Fact]
         public void Init_allows_plain_http_when_opted_in()
         {
-            Config.Init(new AndXOptions { Endpoint = "http://internal.local", AllowInsecureHttp = true }, OkTransport());
-            Assert.True(Config.IsConfigured);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "http://internal.local", AllowInsecureHttp = true }, OkTransport());
+            Assert.True(global::AndX.Config.IsConfigured);
         }
 
         [Fact]
         public void Init_allows_plain_http_on_loopback_without_opt_in()
         {
-            Config.Init(new AndXOptions { Endpoint = "http://127.0.0.1:6699" }, OkTransport());
-            Assert.True(Config.IsConfigured);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "http://127.0.0.1:6699" }, OkTransport());
+            Assert.True(global::AndX.Config.IsConfigured);
         }
 
         [Fact]
@@ -56,43 +75,43 @@ namespace AndX.Tests
             AndXTransportProvider.Factory = () => transport;
             try
             {
-                Config.InitLocal();
-                Assert.True(Config.IsConfigured);
+                global::AndX.Config.InitLocal();
+                Assert.True(global::AndX.Config.IsConfigured);
 
-                await Share.ResolveAsync("tok");
+                await global::AndX.Share.ResolveAsync("tok");
 
                 Assert.StartsWith("http://127.0.0.1:6699/api/scan/tok", transport.Requests.Single().Url);
             }
             finally
             {
                 AndXTransportProvider.Factory = saved;
-                Config.Reset();
+                global::AndX.Config.Reset();
             }
         }
 
         [Fact]
         public void Access_before_init_throws_configuration()
         {
-            var ex = Assert.Throws<AndXException>(() => Share.QrImageUrl("tok"));
+            var ex = Assert.Throws<AndXException>(() => global::AndX.Share.QrImageUrl("tok"));
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
         }
 
         [Fact]
         public void Reset_clears_configuration()
         {
-            Config.Init(new AndXOptions { Endpoint = "https://e.com" }, OkTransport());
-            Config.Reset();
-            Assert.False(Config.IsConfigured);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://e.com" }, OkTransport());
+            global::AndX.Config.Reset();
+            Assert.False(global::AndX.Config.IsConfigured);
         }
 
         [Fact]
         public async Task Edge_key_only_sent_to_edge_paths()
         {
             var transport = OkTransport();
-            Config.Init(new AndXOptions { Endpoint = "https://e.com", EdgeKey = "k" }, transport);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://e.com", EdgeKey = "k" }, transport);
 
-            await Share.IssueResourceTicketAsync("1");
-            await Share.ResolveAsync("tok");
+            await global::AndX.Share.IssueResourceTicketAsync("1");
+            await global::AndX.Share.ResolveAsync("tok");
 
             Assert.True(transport.Requests[0].HasEdgeKey);
             Assert.False(transport.Requests[1].HasEdgeKey);
@@ -102,9 +121,9 @@ namespace AndX.Tests
         public async Task Access_token_is_sent_as_bearer_on_all_requests()
         {
             var transport = OkTransport();
-            Config.Init(new AndXOptions { Endpoint = "https://e.com", AccessToken = "jwt-1" }, transport);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://e.com", AccessToken = "jwt-1" }, transport);
 
-            await Share.ResolveAsync("tok");
+            await global::AndX.Share.ResolveAsync("tok");
 
             Assert.Equal("Bearer jwt-1", transport.Requests[0].Headers[AndXContract.Headers.Authorization]);
         }
@@ -114,11 +133,11 @@ namespace AndX.Tests
         {
             var transport = OkTransport();
             var token = "jwt-old";
-            Config.Init(new AndXOptions { Endpoint = "https://e.com", AccessTokenProvider = () => token }, transport);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://e.com", AccessTokenProvider = () => token }, transport);
 
-            await Share.ResolveAsync("tok");
+            await global::AndX.Share.ResolveAsync("tok");
             token = "jwt-new";
-            await Share.ResolveAsync("tok");
+            await global::AndX.Share.ResolveAsync("tok");
 
             Assert.Equal("Bearer jwt-old", transport.Requests[0].Headers[AndXContract.Headers.Authorization]);
             Assert.Equal("Bearer jwt-new", transport.Requests[1].Headers[AndXContract.Headers.Authorization]);
@@ -128,9 +147,9 @@ namespace AndX.Tests
         public async Task No_authorization_header_when_token_absent()
         {
             var transport = OkTransport();
-            Config.Init(new AndXOptions { Endpoint = "https://e.com" }, transport);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://e.com" }, transport);
 
-            await Share.ResolveAsync("tok");
+            await global::AndX.Share.ResolveAsync("tok");
 
             Assert.False(transport.Requests[0].Headers.ContainsKey(AndXContract.Headers.Authorization));
         }
@@ -139,9 +158,9 @@ namespace AndX.Tests
         public async Task Pay_query_order_maps_status()
         {
             var transport = new FakeTransport((req, i) => FakeResponse.Ok("{\"orderNo\":\"o1\",\"status\":\"PAID\",\"amount\":100}"));
-            Config.Init(new AndXOptions { Endpoint = "https://e.com" }, transport);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://e.com" }, transport);
 
-            var status = await Pay.QueryOrderAsync("o1");
+            var status = await global::AndX.Pay.QueryOrderAsync("o1");
 
             Assert.Equal("PAID", status.Status);
             Assert.Equal(100, status.Amount);

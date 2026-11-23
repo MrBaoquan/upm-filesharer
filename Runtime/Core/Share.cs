@@ -2,25 +2,25 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX.Core;
+using Parful.AndX.Core;
 
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>
-    /// 资源分享能力（静态入口）：上传素材、签发票据、扫码解析、下载授权、二维码。
+    /// 资源分享能力（服务实例）：上传素材、签发票据、扫码解析、下载授权、二维码。
     /// 上传对调用方透明：小文件一次性透传，大文件分片流式续传（均由 SDK 自动分流）。
     /// 定价不由端侧决定，由服务端/后台配置。
     /// </summary>
-    public static class Share
+    public class Share
     {
         /// <summary>签发资源下载票据（Edge 控制面，X-Edge-Key）；返回票据与二维码。</summary>
-        public static async Task<IssuedTicket> IssueResourceTicketAsync(string mediaId, CancellationToken cancellationToken = default)
+        public async Task<IssuedTicket> IssueResourceTicketAsync(string mediaId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(mediaId))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "mediaId 不能为空");
             }
-            var api = Config.Api;
+            var api = global::AndX.Config.Api;
             var data = await api.PostRawAsync(
                 AndXContract.Paths.EdgeTickets,
                 new IssueTicketRequest { Purpose = AndXContract.Purposes.ResourceDownload, MediaId = mediaId },
@@ -40,7 +40,7 @@ namespace AndX
         /// <summary>
         /// 上传素材：小文件一次性透传、大文件分片流式续传与续传对齐，完成即签发票据。
         /// </summary>
-        public static async Task<ShareResult> UploadAsync(
+        public async Task<ShareResult> UploadAsync(
             IAndXPayload payload,
             UploadOptions options,
             IProgress<UploadProgress> progress = null,
@@ -51,16 +51,16 @@ namespace AndX
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "payload 不能为空");
             }
             options = options ?? new UploadOptions();
-            var exhibitId = Config.ResolveExhibitId(options.ExhibitId);
+            var exhibitId = global::AndX.Config.ResolveExhibitId(options.ExhibitId);
             var total = payload.Length;
             if (total <= 0)
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "payload.Length 必须大于 0（不支持空文件）");
             }
 
-            var api = Config.Api;
-            var chunkSize = Config.ChunkSize;
-            var mediaType = options.MediaType ?? payload.MediaType;
+            var api = global::AndX.Config.Api;
+            var chunkSize = global::AndX.Config.ChunkSize;
+            var mediaType = ResolveMediaType(options, payload);
 
             // 小文件走 Edge 一次性透传（少两次往返）；服务端上限更小时回退分片
             if (total <= chunkSize)
@@ -147,45 +147,163 @@ namespace AndX
         }
 
         /// <summary>中止上传会话（幂等清理）。</summary>
-        public static Task AbortAsync(string uploadId, CancellationToken cancellationToken = default)
+        public Task AbortAsync(string uploadId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(uploadId))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "uploadId 不能为空");
             }
-            return Config.Api.DeleteAsync(AndXContract.Paths.EdgeUploads + "/" + uploadId, cancellationToken);
+            return global::AndX.Config.Api.DeleteAsync(AndXContract.Paths.EdgeUploads + "/" + uploadId, cancellationToken);
+        }
+
+        /// <summary>
+        /// 创建反向上传会话：插件展示 <see cref="ReceiveUploadSession.UploadUrl"/> 二维码，
+        /// 用户扫码经小程序或 H5 上传一张图片。
+        /// </summary>
+        public async Task<ReceiveUploadSession> CreateReceiveUploadSessionAsync(
+            ReceiveUploadOptions options = null,
+            CancellationToken cancellationToken = default)
+        {
+            options = options ?? new ReceiveUploadOptions();
+            if (options.MaxBytes.HasValue && options.MaxBytes.Value <= 0)
+            {
+                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "MaxBytes 必须大于 0");
+            }
+            if (options.TtlSeconds.HasValue && (options.TtlSeconds.Value < 30 || options.TtlSeconds.Value > 3600))
+            {
+                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "TtlSeconds 必须在 30~3600 秒之间");
+            }
+            var api = global::AndX.Config.Api;
+            var exhibitId = global::AndX.Config.ResolveExhibitId(options.ExhibitId);
+            var data = await api.PostRawAsync(
+                AndXContract.Paths.ReceiveUploadSessions,
+                new CreateReceiveUploadRequest
+                {
+                    ExhibitId = string.IsNullOrEmpty(exhibitId) ? null : exhibitId,
+                    MediaType = "image",
+                    MaxBytes = options.MaxBytes,
+                    TtlSeconds = options.TtlSeconds,
+                    Title = options.Title,
+                    ImageSpec = options.ImageSpec,
+                },
+                cancellationToken).ConfigureAwait(false);
+            return MapReceiveUpload(api, data.ToObject<ReceiveUploadSessionResponse>(AndXJson.Serializer));
+        }
+
+        /// <summary>查询反向上传会话；Completed 时返回短时下载地址。</summary>
+        public async Task<ReceiveUploadSession> GetReceiveUploadSessionAsync(
+            string sessionId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "sessionId 不能为空");
+            }
+            var api = global::AndX.Config.Api;
+            var data = await api.GetRawAsync(
+                AndXContract.Paths.ReceiveUploadSessions + "/" + Uri.EscapeDataString(sessionId.Trim()),
+                cancellationToken).ConfigureAwait(false);
+            return MapReceiveUpload(api, data.ToObject<ReceiveUploadSessionResponse>(AndXJson.Serializer));
+        }
+
+        /// <summary>取消尚未完成的反向上传会话（幂等）。</summary>
+        public Task CancelReceiveUploadSessionAsync(
+            string sessionId,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(sessionId))
+            {
+                throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "sessionId 不能为空");
+            }
+            return global::AndX.Config.Api.DeleteAsync(
+                AndXContract.Paths.ReceiveUploadSessions + "/" + Uri.EscapeDataString(sessionId.Trim()),
+                cancellationToken);
         }
 
         /// <summary>扫码解析（公开，可选登录）：返回预览 + 定价 + 是否已购。</summary>
-        public static Task<ScanResolveResult> ResolveAsync(string token, CancellationToken cancellationToken = default)
+        public Task<ScanResolveResult> ResolveAsync(string token, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(token))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "token 不能为空");
             }
-            return Config.Api.GetAsync<ScanResolveResult>(AndXContract.Paths.Scan + "/" + token, cancellationToken);
+            return global::AndX.Config.Api.GetAsync<ScanResolveResult>(AndXContract.Paths.Scan + "/" + token, cancellationToken);
         }
 
         /// <summary>下载授权（需登录）：返回 presigned 下载地址。</summary>
-        public static Task<DownloadResult> GetDownloadAsync(string token, CancellationToken cancellationToken = default)
+        public Task<DownloadResult> GetDownloadAsync(string token, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrEmpty(token))
             {
                 throw new AndXException(AndXContract.SdkErrorCodes.Configuration, "token 不能为空");
             }
-            return Config.Api.GetAsync<DownloadResult>(AndXContract.Paths.ResourceDownload(token), cancellationToken);
+            return global::AndX.Config.Api.GetAsync<DownloadResult>(AndXContract.Paths.ResourceDownload(token), cancellationToken);
         }
 
         /// <summary>二维码 PNG 绝对地址（服务端出图）。</summary>
-        public static string QrImageUrl(string token)
+        public string QrImageUrl(string token)
         {
-            return Config.Api.ResolveUrl(AndXContract.Paths.ResourceQrcode(token));
+            return global::AndX.Config.Api.ResolveUrl(AndXContract.Paths.ResourceQrcode(token));
         }
 
         /// <summary>下载二维码 PNG 原始字节（服务端出图）。</summary>
-        public static Task<byte[]> GetQrPngAsync(string token, CancellationToken cancellationToken = default)
+        public Task<byte[]> GetQrPngAsync(string token, CancellationToken cancellationToken = default)
         {
-            return Config.Api.GetBytesAsync(AndXContract.Paths.ResourceQrcode(token), cancellationToken);
+            return global::AndX.Config.Api.GetBytesAsync(AndXContract.Paths.ResourceQrcode(token), cancellationToken);
+        }
+
+        private static ReceiveUploadSession MapReceiveUpload(
+            AndXApiClient api,
+            ReceiveUploadSessionResponse response)
+        {
+            if (response == null)
+            {
+                throw new AndXException(
+                    AndXContract.ErrorCodes.InternalError,
+                    "反向上传响应为空（服务端返回了非预期报文）");
+            }
+            return new ReceiveUploadSession
+            {
+                SessionId = response.SessionId,
+                Status = response.Status,
+                Version = response.Version,
+                MediaType = response.MediaType,
+                MaxBytes = response.MaxBytes,
+                Title = response.Title,
+                UploadUrl = response.UploadUrl,
+                QrImageUrl = string.IsNullOrEmpty(response.QrPngUrl) ? null : api.ResolveUrl(response.QrPngUrl),
+                ExpiresAt = response.ExpiresAt,
+                CompletedAt = response.CompletedAt,
+                ErrorCode = response.ErrorCode,
+                ImageSpec = response.ImageSpec,
+                Media = response.Media,
+            };
+        }
+
+        private static MediaType ResolveMediaType(UploadOptions options, IAndXPayload payload)
+        {
+            if (options.MediaType.HasValue)
+            {
+                return options.MediaType.Value;
+            }
+            if (payload.MediaType == MediaType.Image && LooksLikeVideo(payload.FileName))
+            {
+                return MediaType.Video;
+            }
+            return payload.MediaType;
+        }
+
+        private static bool LooksLikeVideo(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName))
+            {
+                return false;
+            }
+            var ext = Path.GetExtension(fileName);
+            return string.Equals(ext, ".mp4", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(ext, ".mov", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(ext, ".webm", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(ext, ".m4v", StringComparison.OrdinalIgnoreCase);
         }
 
         private static string MediaTypeToWire(MediaType type)

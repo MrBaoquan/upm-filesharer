@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX.Core;
+using Parful.AndX.Core;
 
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>传输实现工厂（由平台适配层注册；core 不引用任何平台 API）。</summary>
     public static class AndXTransportProvider
@@ -20,16 +20,16 @@ namespace AndX
     /// > 两种接入形态（<see cref="AndXAccessMode"/>）**业务调用完全一致**，差异只在「凭据归谁 / 展项身份从哪来」：
     /// > 直连后端由插件持本机节点凭据；经 AndXEdge 则由 Edge 代持。
     /// </summary>
-    public static class Config
+    public class Config
     {
-        private static AndXApiClient _api;
-        private static long _chunkSize = 8L * 1024 * 1024;
-        private static string _exhibitId;
-        private static NodeCredential _nodeCredential;
-        private static bool _hasEdgeKey;
+        private AndXApiClient _api;
+        private long _chunkSize = 8L * 1024 * 1024;
+        private string _exhibitId;
+        private NodeCredential _nodeCredential;
+        private bool _hasEdgeKey;
 
         /// <summary>是否已完成配置。</summary>
-        public static bool IsConfigured
+        public bool IsConfigured
         {
             get { return _api != null; }
         }
@@ -38,19 +38,19 @@ namespace AndX
         /// 生效的接入方式：<see cref="InitAuto(AndXOptions)"/> 解析后写回；显式 <see cref="Init(AndXOptions)"/> 时取
         /// <see cref="AndXOptions.AccessMode"/>（调用方声明值，未做推断）。
         /// </summary>
-        public static AndXAccessMode ActiveMode { get; private set; } = AndXAccessMode.Direct;
+        public AndXAccessMode ActiveMode { get; private set; } = AndXAccessMode.Direct;
 
         /// <summary>生效的本机节点身份（直连模式）；经 Edge 或未持节点凭据时为 null。**密钥不外露**。</summary>
-        public static string ActiveNodeId
+        public string ActiveNodeId
         {
             get { return _nodeCredential == null ? null : _nodeCredential.NodeId; }
         }
 
         /// <summary>本次配置的选择理由（可读，不含密钥）；示例与现场排障可直接打印。</summary>
-        public static string ResolutionReason { get; private set; }
+        public string ResolutionReason { get; private set; }
 
         /// <summary>已配置的控制面客户端；未配置时抛出配置错误。</summary>
-        internal static AndXApiClient Api
+        internal AndXApiClient Api
         {
             get
             {
@@ -66,25 +66,25 @@ namespace AndX
         }
 
         /// <summary>上传分片阈值（字节）。</summary>
-        internal static long ChunkSize
+        internal long ChunkSize
         {
             get { return _chunkSize; }
         }
 
         /// <summary>全局默认展项 ID（<see cref="AndXOptions.ExhibitId"/>）；空表示由 Edge / 服务端兜底。</summary>
-        internal static string ExhibitId
+        internal string ExhibitId
         {
             get { return _exhibitId; }
         }
 
         /// <summary>解析展项 ID：显式值优先，其次全局默认；均空返回 null。</summary>
-        internal static string ResolveExhibitId(string explicitId)
+        internal string ResolveExhibitId(string explicitId)
         {
             return !string.IsNullOrEmpty(explicitId) ? explicitId : _exhibitId;
         }
 
         /// <summary>一行接入摘要（**不含任何密钥**）：模式 / 基址 / 身份来源 / 展项兜底 / 选择理由。</summary>
-        public static string Describe()
+        public string Describe()
         {
             var api = _api;
             if (api == null)
@@ -121,7 +121,7 @@ namespace AndX
         }
 
         /// <summary>使用平台适配层注册的默认传输进行配置。</summary>
-        public static void Init(AndXOptions options)
+        public void Init(AndXOptions options)
         {
             Init(options, null);
         }
@@ -131,13 +131,13 @@ namespace AndX
         /// 鉴权、展项标识与公网地址均由 Edge 代持，调用方无需提供任何密钥。
         /// 等价于 <c>InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Edge })</c>。
         /// </summary>
-        public static void InitLocal()
+        public void InitLocal()
         {
             InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Edge });
         }
 
         /// <summary>显式注入传输实现进行配置（便于测试与自定义实现）。</summary>
-        public static void Init(AndXOptions options, IAndXTransport transport)
+        public void Init(AndXOptions options, IAndXTransport transport)
         {
             if (options == null)
             {
@@ -179,7 +179,7 @@ namespace AndX
         /// 结果写回 <see cref="ActiveMode"/> / <see cref="ResolutionReason"/> / <see cref="ActiveNodeId"/>，示例与排障可直接打印
         /// <see cref="Describe"/>。需要「首启注册」（只有一次性令牌、尚无节点密钥）时用 <see cref="InitAutoAsync"/>。
         /// </summary>
-        public static void InitAuto(AndXOptions options = null)
+        public void InitAuto(AndXOptions options = null)
         {
             var opts = options ?? new AndXOptions();
             var plan = Plan(opts, allowEnroll: false);
@@ -193,13 +193,13 @@ namespace AndX
         /// 同 <see cref="InitAuto(AndXOptions)"/>，但允许用一次性注册令牌完成**首启注册**
         /// （<see cref="Node.EnrollAsync"/> 是异步动作）：注册成功后凭据落盘，后续启动走同步的 <see cref="InitAuto"/>。
         /// </summary>
-        public static async Task InitAutoAsync(AndXOptions options = null, CancellationToken cancellationToken = default)
+        public async Task InitAutoAsync(AndXOptions options = null, CancellationToken cancellationToken = default)
         {
             var opts = options ?? new AndXOptions();
             var plan = Plan(opts, allowEnroll: true);
             if (plan.NeedsEnroll)
             {
-                plan.Credential = await Node
+                plan.Credential = await global::AndX.Node
                     .EnrollAsync(
                         plan.Endpoint,
                         FirstNonEmpty(opts.EnrollmentToken, AndXEnvironment.EnrollmentToken),
@@ -218,7 +218,7 @@ namespace AndX
         }
 
         /// <summary>清空配置（测试与场景切换用）。</summary>
-        public static void Reset()
+        public void Reset()
         {
             _api = null;
             _chunkSize = 8L * 1024 * 1024;

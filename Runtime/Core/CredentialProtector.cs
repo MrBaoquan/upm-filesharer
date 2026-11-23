@@ -1,7 +1,7 @@
 using System;
 using System.Text;
 
-namespace AndX.Core
+namespace Parful.AndX.Core
 {
     /// <summary>
     /// 节点密钥的**静态保护**扩展点（solution §16.2）：把明文密钥转成可落盘的形式。

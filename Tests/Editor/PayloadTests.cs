@@ -1,10 +1,10 @@
 using System.IO;
-using AndX.Core;
-using AndX.Unity;
+using Parful.AndX.Core;
+using Parful.AndX.Unity;
 using NUnit.Framework;
 using UnityEngine;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     /// <summary>
     /// 引擎侧载荷测试：<c>Runtime/Unity</c> 的 <see cref="IAndXPayload"/> 实现依赖 UnityEngine，

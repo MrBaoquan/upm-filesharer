@@ -4,9 +4,9 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX.Core;
+using Parful.AndX.Core;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     /// <summary>
     /// 真实 HTTP 传输（**仅用于手动端到端测试**）：把 <see cref="TransportRequest"/> 原样打到真实后端，

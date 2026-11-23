@@ -5,7 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 
-namespace AndX.Core
+namespace Parful.AndX.Core
 {
     /// <summary>
     /// 节点请求签名（solution §16.3 / implementation §13.3；服务端 `device-crypto.service.ts` 的镜像实现）。

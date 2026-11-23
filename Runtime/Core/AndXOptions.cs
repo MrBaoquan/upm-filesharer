@@ -1,6 +1,6 @@
 using System;
 
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>
     /// AndX SDK 配置。两种接入形态见 <see cref="AndXAccessMode"/>：**默认直连 AndX 云服务**（插件持本机节点凭据），

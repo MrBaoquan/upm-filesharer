@@ -2,12 +2,12 @@ using System;
 using System.Collections;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX.Core;
-using AndX.Unity;
+using Parful.AndX.Core;
+using Parful.AndX.Unity;
 using NUnit.Framework;
 using UnityEngine.TestTools;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     /// <summary>PlayMode 冒烟：验证 <c>AndX.Unity</c> 的启动注册与 UnityWebRequest 传输映射。</summary>
     public class RuntimeSmokeTests
@@ -15,10 +15,10 @@ namespace AndX.Tests
         [UnityTest]
         public IEnumerator Bootstrap_registers_default_transport()
         {
-            Config.Reset();
-            Config.Init(new AndXOptions { Endpoint = "https://edge.test" });
-            Assert.IsTrue(Config.IsConfigured, "AndXUnityBootstrap 应在启动时注册 UnityWebRequestTransport");
-            Config.Reset();
+            global::AndX.Config.Reset();
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://edge.test" });
+            Assert.IsTrue(global::AndX.Config.IsConfigured, "AndXUnityBootstrap 应在启动时注册 UnityWebRequestTransport");
+            global::AndX.Config.Reset();
             yield return null;
         }
 
@@ -29,7 +29,7 @@ namespace AndX.Tests
             var request = new TransportRequest
             {
                 Method = "GET",
-                Url = "http://127.0.0.1:1/andx-nope",
+                Url = "https://127.0.0.1:1/andx-nope",
                 Timeout = TimeSpan.FromSeconds(3),
             };
 
@@ -53,7 +53,7 @@ namespace AndX.Tests
             var request = new TransportRequest
             {
                 Method = "GET",
-                Url = "http://127.0.0.1:1/andx-nope",
+                Url = "https://127.0.0.1:1/andx-nope",
                 Timeout = TimeSpan.FromSeconds(3),
             };
 

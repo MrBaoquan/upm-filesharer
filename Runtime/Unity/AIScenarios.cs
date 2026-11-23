@@ -2,13 +2,13 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX.Core;
+using Parful.AndX.Core;
 using UnityEngine;
 
-namespace AndX.Unity
+namespace Parful.AndX.Unity
 {
     /// <summary>
-    /// **场景化 AI 生图**（与 <c>AndX.AI</c> 原始接口并存）：端侧只给素材 + 少量参数，
+    /// **场景化 AI 生图**（与 <c>global::AndX.AI</c> 原始接口并存）：端侧只给素材 + 少量参数，
     /// 提示词模板、出图尺寸与**比例保护**由服务端按场景决定——例如换脸按模板比例出图，不会拉伸变形。
     ///
     /// 典型用法：
@@ -51,7 +51,7 @@ namespace AndX.Unity
             {
                 ["images"] = new[] { EncodeReference(face, maxEdge, jpegQuality), EncodeReference(template, maxEdge, jpegQuality) },
             };
-            return AndX.AI.GenerateScenarioAsync(
+            return global::AndX.AI.GenerateScenarioAsync(
                 AndXContract.AIScenarios.FaceSwap,
                 inputs,
                 exhibitId: exhibitId,
@@ -76,7 +76,7 @@ namespace AndX.Unity
                 ["images"] = new[] { EncodeReference(photo, maxEdge, jpegQuality) },
             };
             var parameters = new Dictionary<string, object> { ["style"] = style ?? string.Empty };
-            return AndX.AI.GenerateScenarioAsync(
+            return global::AndX.AI.GenerateScenarioAsync(
                 AndXContract.AIScenarios.Style,
                 inputs,
                 parameters,
@@ -98,7 +98,7 @@ namespace AndX.Unity
             var parameters = string.IsNullOrEmpty(size)
                 ? null
                 : new Dictionary<string, object> { ["size"] = size };
-            return AndX.AI.GenerateImageAsync(
+            return global::AndX.AI.GenerateImageAsync(
                 new AIImageRequest
                 {
                     Scenario = AndXContract.AIScenarios.TextToImage,

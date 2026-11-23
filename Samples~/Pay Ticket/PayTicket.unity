@@ -301,11 +301,15 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 46bdbc805b06eef4eaf997b951b31278, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  exhibitId: 
+  exhibitId: 6
   DisplayQRCode: {fileID: 1700000012}
   orderNo: 
   StatusText: {fileID: 1700000034}
   autoRunOnStart: 1
+  accessMode: 0
+  endpoint: https://andx.andcrane.com
+  useOnlinePaidInteractionCase: 1
+  onlinePaidInteractionExhibitId: 6
 --- !u!224 &1700000006
 RectTransform:
   m_ObjectHideFlags: 0

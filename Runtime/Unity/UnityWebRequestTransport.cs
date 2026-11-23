@@ -1,11 +1,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX.Core;
+using Parful.AndX.Core;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace AndX.Unity
+namespace Parful.AndX.Unity
 {
     /// <summary>
     /// UnityWebRequest 传输实现：Windows / Android / WebGL 通吃。

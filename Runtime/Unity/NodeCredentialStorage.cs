@@ -1,8 +1,8 @@
 using System.IO;
-using AndX.Core;
+using Parful.AndX.Core;
 using UnityEngine;
 
-namespace AndX.Unity
+namespace Parful.AndX.Unity
 {
     /// <summary>
     /// Unity 侧凭据落盘位置：<c>Application.persistentDataPath/andx/node-credential.json</c>。

@@ -1,0 +1,78 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <ui:Style src="AndXUNIHperDemoUI.uss" />
+    <ui:VisualElement name="root" class="page">
+        <ui:VisualElement class="header">
+            <ui:VisualElement class="brand">
+                <ui:VisualElement class="brand-mark">
+                    <ui:Label text="A" class="brand-mark-label" />
+                </ui:VisualElement>
+                <ui:VisualElement class="brand-copy">
+                    <ui:Label text="ANDX 现场体验" class="title" />
+                    <ui:Label text="扫码上传照片 · 连接现场屏幕" class="subtitle" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="connection-pill" class="connection-pill">
+                <ui:Label name="connection-dot" text="●" class="connection-dot" />
+                <ui:Label name="connection-text" text="连接中" class="connection-text" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement class="content">
+            <ui:ScrollView name="left-scroll" class="main-column">
+                <ui:VisualElement class="hero-card">
+                    <ui:Label text="现场互动" class="eyebrow" />
+                    <ui:Label text="让观众把照片传到现场屏幕" class="hero-title" />
+                    <ui:Label text="点击「扫码收图」生成二维码。观众用微信扫码后选择照片，上传完成即可在现场屏幕查看。" class="hero-desc" />
+                    <ui:VisualElement class="primary-actions">
+                        <ui:Button name="receive-image-button" text="扫码收图" class="primary-button hero-button" />
+                        <ui:Button name="upload-button" text="上传测试图片" class="secondary-button hero-button" />
+                    </ui:VisualElement>
+                    <ui:Label name="config" text="正在连接现场服务…" class="service-summary" />
+                </ui:VisualElement>
+
+                <ui:VisualElement class="section-card">
+                    <ui:Label text="更多能力" class="section-title" />
+                    <ui:VisualElement class="action-grid">
+                        <ui:Button name="resolve-button" text="查看扫码结果" class="secondary-button action-button" />
+                        <ui:Button name="download-button" text="保存测试文件" class="secondary-button action-button" />
+                        <ui:Button name="pay-button" text="生成支付码" class="secondary-button action-button" />
+                        <ui:Button name="order-button" text="查询订单" class="secondary-button action-button" />
+                        <ui:Button name="start-game-button" text="开始付费体验" class="secondary-button action-button" />
+                        <ui:Button name="ai-text-button" text="生成一段文字" class="secondary-button action-button" />
+                        <ui:Button name="ai-image-button" text="生成一张图片（计费）" class="secondary-button action-button" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <ui:VisualElement class="diagnostics-card">
+                    <ui:Button name="diagnostics-toggle" text="显示运行诊断" class="diagnostics-toggle" />
+                    <ui:VisualElement name="diagnostics-panel" class="diagnostics-panel">
+                        <ui:Label name="config-path" text="配置文件：加载中" class="config-path" />
+                        <ui:Label name="config-raw" text="运行信息加载中…" class="config-raw" />
+                        <ui:Label name="business-code" text="展项参数可在下方调整。" class="business-code" />
+                        <ui:VisualElement class="field-row">
+                            <ui:TextField name="exhibit-id" value="2" label="当前展项 ID" class="exhibit-input" />
+                            <ui:TextField name="paid-exhibit-id" value="6" label="付费展项 ID" class="exhibit-input" />
+                        </ui:VisualElement>
+                        <ui:Label text="付费演示：生成支付码 → 扫码支付 → 开始付费体验；展示 3 秒后自动复位。" class="flow-hint" />
+                        <ui:Button name="reload-button" text="重新读取 AndX.xml" class="secondary-button reload-button" />
+                        <ui:Label text="运行日志" class="diagnostics-title" />
+                        <ui:ScrollView name="log-scroll" class="log-scroll">
+                            <ui:Label name="result-log" text="等待操作…" class="result-log" />
+                        </ui:ScrollView>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:ScrollView>
+
+            <ui:VisualElement class="stage-panel">
+                <ui:Label text="现场二维码" class="stage-title" />
+                <ui:Label name="preview-hint" text="点击「扫码收图」后显示二维码" class="preview-hint" />
+                <ui:VisualElement class="qr-frame">
+                    <ui:Image name="qr-image" class="qr-image" />
+                    <ui:Label name="qr-placeholder" text="等待生成二维码" class="qr-placeholder" />
+                </ui:VisualElement>
+                <ui:Label name="status" text="正在准备现场体验…" class="status" />
+                <ui:Label text="观众用微信扫码后，照片会显示在现场屏幕上。" class="stage-footer" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

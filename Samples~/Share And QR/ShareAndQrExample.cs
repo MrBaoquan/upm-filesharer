@@ -1,11 +1,11 @@
 using System;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Unity;
+using Parful.AndX;
+using Parful.AndX.Unity;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace AndX.Samples
+namespace Parful.AndX.Samples
 {
     /// <summary>
     /// 示例 1（Share And QR）：上传素材 → 服务端出码 → 显示二维码。
@@ -30,11 +30,11 @@ namespace AndX.Samples
             + "Auto=本机有节点凭据则直连，否则走 Edge")]
         public AndXAccessMode accessMode = AndXAccessMode.Direct;
 
-        [Tooltip("基址：Direct=后端基址（留空读环境变量 ANDX_ENDPOINT）；Edge=本机 Edge 基址（留空用 http://127.0.0.1:6699）")]
-        public string endpoint = "";
+        [Tooltip("基址：默认线上 https://andx.andcrane.com；联调时可覆盖。Edge 模式默认使用 http://127.0.0.1:6699")]
+        public string endpoint = "https://andx.andcrane.com";
 
-        [Tooltip("展项 ID（可选）：直连时留空——服务端按节点绑定裁决，客户端无法冒充展项；仅 Hub 中控才必须逐次携带")]
-        public string exhibitId = "";
+        [Tooltip("展项 ID：线上专项测试默认 2；展项机按节点绑定时可留空，Hub 中控必须逐次携带")]
+        public string exhibitId = "2";
 
         [Tooltip("素材标题（可选）")]
         public string title = "展项截图";
@@ -50,7 +50,7 @@ namespace AndX.Samples
 
         private async void Start()
         {
-            if (!autoRunOnStart || !AndX.Config.IsConfigured)
+            if (!autoRunOnStart || !global::AndX.Config.IsConfigured)
             {
                 return;
             }
@@ -80,7 +80,7 @@ namespace AndX.Samples
                 // 上传对调用方透明：≤ ChunkSize 一次性透传，大文件自动分片续传
                 // 进度用 System.Progress<T> 包一层（IProgress<T> 是接口，不能直接传 lambda）；
                 // 它在构造时捕获同步上下文，回调会回到主线程，可直接刷新 UI。
-                ShareResult result = await AndX.Share.UploadAsync(
+                ShareResult result = await global::AndX.Share.UploadAsync(
                     new TexturePayload(targetTex),
                     new UploadOptions
                     {
@@ -114,13 +114,13 @@ namespace AndX.Samples
 
         private async Task LogNodeIdentityAsync()
         {
-            if (AndX.Config.ActiveMode != AndXAccessMode.Direct)
+            if (global::AndX.Config.ActiveMode != AndXAccessMode.Direct)
             {
                 return;
             }
             try
             {
-                NodeIdentity me = await AndX.Node.SelfAsync();
+                NodeIdentity me = await global::AndX.Node.SelfAsync();
                 var authorized = me.AuthorizedExhibitIds == null
                     ? "-"
                     : string.Join(",", me.AuthorizedExhibitIds);
@@ -144,7 +144,7 @@ namespace AndX.Samples
         {
             try
             {
-                AndX.Config.InitAuto(new AndXOptions
+                global::AndX.Config.InitAuto(new AndXOptions
                 {
                     AccessMode = accessMode,
                     Endpoint = string.IsNullOrEmpty(endpoint) ? null : endpoint,
@@ -152,7 +152,7 @@ namespace AndX.Samples
                     // 旧轨（过渡期）：仅「用共享密钥直连后端」才需要；只从环境变量取，不入包、不入库
                     EdgeKey = EdgeKey.FromEnvironment(),
                 });
-                Debug.Log($"[AndX] 接入方式 = {AndX.Config.Describe()}");
+                Debug.Log($"[AndX] 接入方式 = {global::AndX.Config.Describe()}");
                 return true;
             }
             catch (AndXException e)
@@ -165,7 +165,7 @@ namespace AndX.Samples
 
         private bool EnsureConfigured()
         {
-            if (AndX.Config.IsConfigured)
+            if (global::AndX.Config.IsConfigured)
             {
                 return true;
             }
@@ -180,7 +180,7 @@ namespace AndX.Samples
         private void OnDestroy()
         {
             // 场景切换 / 退出时清空配置（多场景复用与测试）
-            AndX.Config.Reset();
+            global::AndX.Config.Reset();
         }
     }
 }

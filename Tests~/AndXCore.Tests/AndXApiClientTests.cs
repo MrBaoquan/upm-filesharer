@@ -1,11 +1,11 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
+using Parful.AndX;
+using Parful.AndX.Core;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     public class AndXApiClientTests
     {

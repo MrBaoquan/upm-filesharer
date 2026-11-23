@@ -1,0 +1,16 @@
+{
+  "name": "AndX.Integration.IOToolkit",
+  "rootNamespace": "Parful.AndX.Integration.IOToolkit",
+  "references": ["AndX.Runtime", "IOToolkit.Runtime"],
+  "includePlatforms": ["Editor", "WindowsStandalone32", "WindowsStandalone64"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": ["ANDX_IOTOOLKIT_PRESENT"],
+  "versionDefines": [
+    { "name": "com.parful.iotoolkit", "expression": "2.4.0", "define": "ANDX_IOTOOLKIT_PRESENT" }
+  ],
+  "noEngineReferences": false
+}

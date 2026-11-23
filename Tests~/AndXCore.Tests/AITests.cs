@@ -1,22 +1,22 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
+using Parful.AndX;
+using Parful.AndX.Core;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     public class AITests
     {
         public AITests()
         {
-            Config.Reset();
+            global::AndX.Config.Reset();
         }
 
         private static void Configure(FakeTransport transport, string exhibitId = null)
         {
-            Config.Init(
+            global::AndX.Config.Init(
                 new AndXOptions { Endpoint = "https://edge.example.com", EdgeKey = "edge-key", ExhibitId = exhibitId },
                 transport);
         }
@@ -29,7 +29,7 @@ namespace AndX.Tests
                 + "[{\"capability\":\"ai.image.generate\",\"model\":\"ai-image\",\"available\":true}]}"));
             Configure(transport);
 
-            var caps = await AI.GetCapabilitiesAsync();
+            var caps = await global::AndX.AI.GetCapabilitiesAsync();
 
             Assert.True(caps.Available);
             Assert.Single(caps.Capabilities);
@@ -49,7 +49,7 @@ namespace AndX.Tests
                 "{\"jobNo\":\"aj_0123456789abcdef01234567\",\"status\":\"PENDING\",\"cached\":false}"));
             Configure(transport);
 
-            var job = await AI.CreateImageJobAsync(new AIImageRequest
+            var job = await global::AndX.AI.CreateImageJobAsync(new AIImageRequest
             {
                 Prompt = "熊猫",
                 ExhibitId = "1024",
@@ -82,7 +82,7 @@ namespace AndX.Tests
                 "{\"jobNo\":\"aj_1\",\"status\":\"PENDING\",\"cached\":false}"));
             Configure(transport, exhibitId: "777");
 
-            await AI.CreateImageJobAsync(new AIImageRequest { Prompt = "x" });
+            await global::AndX.AI.CreateImageJobAsync(new AIImageRequest { Prompt = "x" });
 
             Assert.Contains("\"exhibitId\":\"777\"", transport.Requests.Single().Body);
         }
@@ -94,7 +94,7 @@ namespace AndX.Tests
                 "{\"jobNo\":\"aj_1\",\"status\":\"PENDING\",\"cached\":false}"));
             Configure(transport);
 
-            await AI.CreateImageJobAsync(new AIImageRequest { Prompt = "x" });
+            await global::AndX.AI.CreateImageJobAsync(new AIImageRequest { Prompt = "x" });
 
             Assert.DoesNotContain("exhibitId", transport.Requests.Single().Body);
         }
@@ -106,7 +106,7 @@ namespace AndX.Tests
             Configure(transport);
 
             var ex = await Assert.ThrowsAsync<AndXException>(
-                () => AI.CreateImageJobAsync(new AIImageRequest { Prompt = "" }));
+                () => global::AndX.AI.CreateImageJobAsync(new AIImageRequest { Prompt = "" }));
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
             Assert.Empty(transport.Requests);
         }
@@ -121,7 +121,7 @@ namespace AndX.Tests
                 + "\"createdAt\":\"2026-01-01T00:00:00Z\",\"updatedAt\":\"2026-01-01T00:00:01Z\"}"));
             Configure(transport);
 
-            var job = await AI.GetJobAsync("aj_1");
+            var job = await global::AndX.AI.GetJobAsync("aj_1");
 
             Assert.Equal(AndXContract.AIJobStatuses.Succeeded, job.Status);
             Assert.Equal("88123", job.MediaId);
@@ -141,7 +141,7 @@ namespace AndX.Tests
                 "{\"jobNo\":\"aj_1\",\"status\":\"CANCELED\"}"));
             Configure(transport);
 
-            var job = await AI.CancelJobAsync("aj_1");
+            var job = await global::AndX.AI.CancelJobAsync("aj_1");
 
             Assert.Equal(AndXContract.AIJobStatuses.Canceled, job.Status);
             Assert.True(job.IsTerminal);
@@ -169,7 +169,7 @@ namespace AndX.Tests
             });
             Configure(transport);
 
-            var job = await AI.GenerateImageAsync(
+            var job = await global::AndX.AI.GenerateImageAsync(
                 new AIImageRequest { Prompt = "p" },
                 new AIWaitOptions { Interval = TimeSpan.FromMilliseconds(1) });
 
@@ -186,7 +186,7 @@ namespace AndX.Tests
                 "{\"jobNo\":\"aj_1\",\"status\":\"RUNNING\"}"));
             Configure(transport);
 
-            var ex = await Assert.ThrowsAsync<AndXException>(() => AI.WaitForJobAsync(
+            var ex = await Assert.ThrowsAsync<AndXException>(() => global::AndX.AI.WaitForJobAsync(
                 "aj_1",
                 new AIWaitOptions { Timeout = TimeSpan.FromMilliseconds(5), Interval = TimeSpan.FromMilliseconds(1) }));
 
@@ -206,7 +206,7 @@ namespace AndX.Tests
             });
             Configure(transport);
 
-            var job = await AI.GenerateImageAsync("赛博朋克城市夜景");
+            var job = await global::AndX.AI.GenerateImageAsync("赛博朋克城市夜景");
 
             Assert.Equal("9", job.MediaId);
             Assert.Contains("\"prompt\":\"赛博朋克城市夜景\"", transport.Requests.First().Body);
@@ -215,7 +215,7 @@ namespace AndX.Tests
         [Fact]
         public async Task GetCapabilities_before_init_throws_configuration()
         {
-            var ex = await Assert.ThrowsAsync<AndXException>(() => AI.GetCapabilitiesAsync());
+            var ex = await Assert.ThrowsAsync<AndXException>(() => global::AndX.AI.GetCapabilitiesAsync());
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
         }
     }

@@ -4,10 +4,10 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
+using Parful.AndX;
+using Parful.AndX.Core;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     internal sealed class RecordedRequest
     {

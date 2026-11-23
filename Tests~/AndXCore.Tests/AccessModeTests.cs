@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
+using Parful.AndX;
+using Parful.AndX.Core;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     /// <summary>
     /// 接入方式解析（直连 / 经 Edge / 自动）与节点自省的回归。
@@ -41,12 +41,12 @@ namespace AndX.Tests
             _storeBackup = AndXCredentialProvider.StoreFactory;
             AndXTransportProvider.Factory = null;
             AndXCredentialProvider.StoreFactory = null;
-            Config.Reset();
+            global::AndX.Config.Reset();
         }
 
         public void Dispose()
         {
-            Config.Reset();
+            global::AndX.Config.Reset();
             AndXTransportProvider.Factory = _factoryBackup;
             AndXCredentialProvider.StoreFactory = _storeBackup;
             foreach (var pair in _envBackup)
@@ -102,13 +102,13 @@ namespace AndX.Tests
             UseStore("DEV-DEFAULT", "secret-default");
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitAuto();
+            global::AndX.Config.InitAuto();
 
-            Assert.Equal(AndXAccessMode.Direct, Config.ActiveMode);
-            Assert.Equal("DEV-DEFAULT", Config.ActiveNodeId);
+            Assert.Equal(AndXAccessMode.Direct, global::AndX.Config.ActiveMode);
+            Assert.Equal("DEV-DEFAULT", global::AndX.Config.ActiveNodeId);
             // 未给 Endpoint 也未设 ANDX_ENDPOINT：回退到默认云服务基址（而不是抛错）
-            Assert.StartsWith(AndXContract.Defaults.CloudEndpoint, Pay.QrImageUrl("tok123"));
-            Assert.Contains(AndXContract.Defaults.CloudEndpoint, Config.ResolutionReason);
+            Assert.StartsWith(AndXContract.Defaults.CloudEndpoint, global::AndX.Pay.QrImageUrl("tok123"));
+            Assert.Contains(AndXContract.Defaults.CloudEndpoint, global::AndX.Config.ResolutionReason);
         }
 
         [Fact]
@@ -118,9 +118,9 @@ namespace AndX.Tests
             UseStore("DEV-ENV", "secret-env");
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitAuto();
+            global::AndX.Config.InitAuto();
 
-            Assert.StartsWith("https://api.env.test", Pay.QrImageUrl("tok123"));
+            Assert.StartsWith("https://api.env.test", global::AndX.Pay.QrImageUrl("tok123"));
         }
 
         [Fact]
@@ -130,13 +130,13 @@ namespace AndX.Tests
             UseStore("DEV-001", "secret-1");
             var transport = UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitAuto(new AndXOptions());
+            global::AndX.Config.InitAuto(new AndXOptions());
 
-            Assert.True(Config.IsConfigured);
-            Assert.Equal(AndXAccessMode.Direct, Config.ActiveMode);
-            Assert.Equal("DEV-001", Config.ActiveNodeId);
-            Assert.Contains("node:DEV-001", Config.Describe());
-            Assert.DoesNotContain("secret-1", Config.Describe());
+            Assert.True(global::AndX.Config.IsConfigured);
+            Assert.Equal(AndXAccessMode.Direct, global::AndX.Config.ActiveMode);
+            Assert.Equal("DEV-001", global::AndX.Config.ActiveNodeId);
+            Assert.Contains("node:DEV-001", global::AndX.Config.Describe());
+            Assert.DoesNotContain("secret-1", global::AndX.Config.Describe());
             Assert.True(transport.Requests.Count == 0);
         }
 
@@ -147,9 +147,9 @@ namespace AndX.Tests
             UseStore("DEV-001", "secret-1");
             var transport = UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitAuto();
+            global::AndX.Config.InitAuto();
 
-            await Share.IssueResourceTicketAsync("88123");
+            await global::AndX.Share.IssueResourceTicketAsync("88123");
 
             var request = Assert.Single(transport.Requests);
             Assert.Equal("DEV-001", request.Headers[AndXContract.Headers.DeviceId]);
@@ -164,10 +164,10 @@ namespace AndX.Tests
             UseStore("DEV-001", "secret-1");
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitAuto(new AndXOptions { Endpoint = "https://api.explicit", ExhibitId = "1024" });
+            global::AndX.Config.InitAuto(new AndXOptions { Endpoint = "https://api.explicit", ExhibitId = "1024" });
 
-            Assert.StartsWith("https://api.explicit", Pay.QrImageUrl("tok123"));
-            Assert.Contains("exhibitId=1024", Config.Describe());
+            Assert.StartsWith("https://api.explicit", global::AndX.Pay.QrImageUrl("tok123"));
+            Assert.Contains("exhibitId=1024", global::AndX.Config.Describe());
         }
 
         [Fact]
@@ -176,7 +176,7 @@ namespace AndX.Tests
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
             UseStore();
 
-            var ex = Assert.Throws<AndXException>(() => Config.InitAuto(new AndXOptions { Endpoint = "https://api.test" }));
+            var ex = Assert.Throws<AndXException>(() => global::AndX.Config.InitAuto(new AndXOptions { Endpoint = "https://api.test" }));
 
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
             Assert.Contains("AndX.Node.EnrollAsync", ex.Message);
@@ -191,7 +191,7 @@ namespace AndX.Tests
             UseStore();
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            var ex = Assert.Throws<AndXException>(() => Config.InitAuto());
+            var ex = Assert.Throws<AndXException>(() => global::AndX.Config.InitAuto());
 
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
             Assert.Contains("InitAutoAsync", ex.Message);
@@ -210,10 +210,10 @@ namespace AndX.Tests
                     ? FakeResponse.Ok("{\"nodeId\":\"DEV-002\",\"secret\":\"issued-secret\"}")
                     : FakeResponse.Ok(OkTicket())));
 
-            await Config.InitAutoAsync();
+            await global::AndX.Config.InitAutoAsync();
 
-            Assert.Equal(AndXAccessMode.Direct, Config.ActiveMode);
-            Assert.Equal("DEV-002", Config.ActiveNodeId);
+            Assert.Equal(AndXAccessMode.Direct, global::AndX.Config.ActiveMode);
+            Assert.Equal("DEV-002", global::AndX.Config.ActiveNodeId);
             Assert.Contains("DEV-002", transport.Requests[0].Body);
             Assert.Contains("tok-once", transport.Requests[0].Body);
 
@@ -230,16 +230,16 @@ namespace AndX.Tests
             UseStore("DEV-001", "secret-1");
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitAuto(new AndXOptions
+            global::AndX.Config.InitAuto(new AndXOptions
             {
                 AccessMode = AndXAccessMode.Edge,
                 NodeCredential = new NodeCredential("DEV-999", "explicit-secret"),
             });
 
-            Assert.Equal(AndXAccessMode.Edge, Config.ActiveMode);
-            Assert.Null(Config.ActiveNodeId);
-            Assert.StartsWith(AndXContract.Defaults.LocalEdgeEndpoint, Pay.QrImageUrl("tok123"));
-            Assert.Contains("Edge", Config.ResolutionReason);
+            Assert.Equal(AndXAccessMode.Edge, global::AndX.Config.ActiveMode);
+            Assert.Null(global::AndX.Config.ActiveNodeId);
+            Assert.StartsWith(AndXContract.Defaults.LocalEdgeEndpoint, global::AndX.Pay.QrImageUrl("tok123"));
+            Assert.Contains("Edge", global::AndX.Config.ResolutionReason);
         }
 
         [Fact]
@@ -248,9 +248,9 @@ namespace AndX.Tests
             Environment.SetEnvironmentVariable(AndXEnvironment.EdgeEndpointVariable, "http://127.0.0.1:7000");
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Edge });
+            global::AndX.Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Edge });
 
-            Assert.StartsWith("http://127.0.0.1:7000", Pay.QrImageUrl("tok123"));
+            Assert.StartsWith("http://127.0.0.1:7000", global::AndX.Pay.QrImageUrl("tok123"));
         }
 
         [Fact]
@@ -258,10 +258,10 @@ namespace AndX.Tests
         {
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitLocal();
+            global::AndX.Config.InitLocal();
 
-            Assert.Equal(AndXAccessMode.Edge, Config.ActiveMode);
-            Assert.StartsWith(AndXContract.Defaults.LocalEdgeEndpoint, Pay.QrImageUrl("tok123"));
+            Assert.Equal(AndXAccessMode.Edge, global::AndX.Config.ActiveMode);
+            Assert.StartsWith(AndXContract.Defaults.LocalEdgeEndpoint, global::AndX.Pay.QrImageUrl("tok123"));
         }
 
         // ---------- 自动 ----------
@@ -273,10 +273,10 @@ namespace AndX.Tests
             UseStore("DEV-003", "secret-3");
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Auto });
+            global::AndX.Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Auto });
 
-            Assert.Equal(AndXAccessMode.Direct, Config.ActiveMode);
-            Assert.Equal("DEV-003", Config.ActiveNodeId);
+            Assert.Equal(AndXAccessMode.Direct, global::AndX.Config.ActiveMode);
+            Assert.Equal("DEV-003", global::AndX.Config.ActiveNodeId);
         }
 
         [Fact]
@@ -285,10 +285,10 @@ namespace AndX.Tests
             UseStore();
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Auto });
+            global::AndX.Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Auto });
 
-            Assert.Equal(AndXAccessMode.Edge, Config.ActiveMode);
-            Assert.Contains("回退", Config.ResolutionReason);
+            Assert.Equal(AndXAccessMode.Edge, global::AndX.Config.ActiveMode);
+            Assert.Contains("回退", global::AndX.Config.ResolutionReason);
         }
 
         // ---------- 内网明文放行 ----------
@@ -299,7 +299,7 @@ namespace AndX.Tests
             UseStore("DEV-001", "secret-1");
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            var ex = Assert.Throws<AndXException>(() => Config.InitAuto(new AndXOptions { Endpoint = "http://192.168.1.10:3000" }));
+            var ex = Assert.Throws<AndXException>(() => global::AndX.Config.InitAuto(new AndXOptions { Endpoint = "http://192.168.1.10:3000" }));
 
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
         }
@@ -311,10 +311,10 @@ namespace AndX.Tests
             UseStore("DEV-001", "secret-1");
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(OkTicket())));
 
-            Config.InitAuto(new AndXOptions { Endpoint = "http://192.168.1.10:3000" });
+            global::AndX.Config.InitAuto(new AndXOptions { Endpoint = "http://192.168.1.10:3000" });
 
-            Assert.True(Config.IsConfigured);
-            Assert.Equal(AndXAccessMode.Direct, Config.ActiveMode);
+            Assert.True(global::AndX.Config.IsConfigured);
+            Assert.Equal(AndXAccessMode.Direct, global::AndX.Config.ActiveMode);
         }
 
         // ---------- 节点自省 ----------
@@ -329,8 +329,8 @@ namespace AndX.Tests
                 + "\"authorizedExhibitIds\":[\"1024\",\"2048\"],\"enabled\":true,\"state\":\"IDLE\","
                 + "\"secretHint\":\"0004\",\"serverTime\":\"2026-10-16T01:00:00.000Z\"}")));
 
-            Config.InitAuto();
-            var identity = await Node.SelfAsync();
+            global::AndX.Config.InitAuto();
+            var identity = await global::AndX.Node.SelfAsync();
 
             Assert.Equal("DEV-004", identity.NodeId);
             Assert.Equal("hub", identity.Role);
@@ -350,8 +350,8 @@ namespace AndX.Tests
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok(
                 "{\"nodeId\":\"DEV-005\",\"role\":\"exhibit\",\"exhibitId\":\"1024\",\"enabled\":true}")));
 
-            Config.InitAuto();
-            var identity = await Node.SelfAsync();
+            global::AndX.Config.InitAuto();
+            var identity = await global::AndX.Node.SelfAsync();
 
             Assert.Equal("1024", identity.ExhibitId);
             Assert.False(identity.IsHub);
@@ -369,8 +369,8 @@ namespace AndX.Tests
                 + "\"bytesIn\":0,\"durationMs\":12,\"traceId\":\"t-1\",\"clientIp\":\"10.0.0.9\","
                 + "\"createdAt\":\"2026-10-16T01:00:00.000Z\"}],\"hasMore\":false,\"nextBeforeId\":null}")));
 
-            Config.InitAuto();
-            var entries = await Node.RecentAuditAsync(limit: 1000);
+            global::AndX.Config.InitAuto();
+            var entries = await global::AndX.Node.RecentAuditAsync(limit: 1000);
 
             var entry = Assert.Single(entries);
             Assert.Equal("1024", entry.ExhibitId);
@@ -388,8 +388,8 @@ namespace AndX.Tests
             UseStore("DEV-007", "secret-7");
             UseTransport(new FakeTransport((req, i) => FakeResponse.Ok("{\"items\":[],\"hasMore\":false,\"nextBeforeId\":null}")));
 
-            Config.InitAuto();
-            var entries = await Node.RecentAuditAsync();
+            global::AndX.Config.InitAuto();
+            var entries = await global::AndX.Node.RecentAuditAsync();
 
             Assert.Empty(entries);
         }

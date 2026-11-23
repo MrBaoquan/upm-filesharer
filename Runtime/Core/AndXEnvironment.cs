@@ -1,6 +1,6 @@
 using System;
 
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>
     /// 环境变量接入面（规范 R9.1/R9.2：默认值 &lt; 环境变量 &lt; 部署配置；密钥不入代码、不入包体、不入日志）。

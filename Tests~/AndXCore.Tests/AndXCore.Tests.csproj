@@ -7,7 +7,7 @@
     <LangVersion>latest</LangVersion>
     <IsPackable>false</IsPackable>
     <AssemblyName>AndX.Core.Tests</AssemblyName>
-    <RootNamespace>AndX.Tests</RootNamespace>
+    <RootNamespace>Parful.AndX.Tests</RootNamespace>
   </PropertyGroup>
 
   <!-- 直接编译 Unity 包内与 UnityEngine 无关的 Core 源码（不引入 Unity） -->

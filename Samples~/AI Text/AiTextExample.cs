@@ -1,14 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
-using AndX.Unity;
+using Parful.AndX;
+using Parful.AndX.Core;
+using Parful.AndX.Unity;
 using UnityEngine;
 using UnityEngine.UI;
 using Debug = UnityEngine.Debug;
 
-namespace AndX.Samples
+namespace Parful.AndX.Samples
 {
     /// <summary>示例里的文字场景（藏头诗 / 求签解签 / 祝福赠言）。</summary>
     public enum AITextSceneKind
@@ -41,11 +41,11 @@ namespace AndX.Samples
         [Tooltip("Direct=直连 AndX 云服务：插件持本机节点凭据；Edge=经本机 AndXEdge；Auto=有凭据则直连")]
         public AndXAccessMode accessMode = AndXAccessMode.Direct;
 
-        [Tooltip("基址：留空 = 默认云服务基址；也可用环境变量 ANDX_ENDPOINT（本机联调填 http://127.0.0.1）")]
-        public string endpoint = "";
+        [Tooltip("基址：默认线上 https://andx.andcrane.com；联调时可覆盖")]
+        public string endpoint = "https://andx.andcrane.com";
 
-        [Tooltip("展项 ID：留空 = 用本机节点绑定 / Edge 配置（现场一般不用填）")]
-        public string exhibitId = "";
+        [Tooltip("展项 ID：线上专项测试默认 6；展项机按节点绑定时可留空")]
+        public string exhibitId = "6";
 
         [Header("文字场景")]
         [Tooltip("要试哪个场景（藏头诗 / 求签解签 / 祝福赠言）")]
@@ -110,7 +110,7 @@ namespace AndX.Samples
             busy = true;
             try
             {
-                var caps = await AI.GetCapabilitiesAsync();
+                var caps = await global::AndX.AI.GetCapabilitiesAsync();
                 var lines = new List<string>();
                 foreach (var item in caps.Capabilities)
                 {
@@ -196,14 +196,14 @@ namespace AndX.Samples
         {
             try
             {
-                AndX.Config.InitAuto(new AndXOptions
+                global::AndX.Config.InitAuto(new AndXOptions
                 {
                     AccessMode = accessMode,
                     Endpoint = string.IsNullOrEmpty(endpoint) ? null : endpoint,
                     ExhibitId = string.IsNullOrEmpty(exhibitId) ? null : exhibitId,
                     EdgeKey = EdgeKey.FromEnvironment(),
                 });
-                Debug.Log("[AndX] 接入方式 = " + AndX.Config.Describe());
+                Debug.Log("[AndX] 接入方式 = " + global::AndX.Config.Describe());
                 return true;
             }
             catch (AndXException e)
@@ -215,7 +215,7 @@ namespace AndX.Samples
 
         private bool EnsureConfigured()
         {
-            if (AndX.Config.IsConfigured)
+            if (global::AndX.Config.IsConfigured)
             {
                 return true;
             }
@@ -224,7 +224,7 @@ namespace AndX.Samples
                 Debug.LogWarning("[AndX] 请在 Play 模式下运行示例：SDK 的 Unity 传输在运行时注册。");
                 return false;
             }
-            return TryConfigure() && AndX.Config.IsConfigured;
+            return TryConfigure() && global::AndX.Config.IsConfigured;
         }
 
         private void SetStatus(string message)

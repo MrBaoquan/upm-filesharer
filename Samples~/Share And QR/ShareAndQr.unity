@@ -241,10 +241,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   DisplayQRCode: {fileID: 1748258127}
   targetTex: {fileID: 2800000, guid: 89652b4e7151ad14eb5855bad645aac1, type: 3}
-  endpoint: 
-  exhibitId: 
+  endpoint: https://andx.andcrane.com
+  exhibitId: 2
   title: "\u5C55\u9879\u622A\u56FE"
   autoRunOnStart: 1
+  accessMode: 0
 --- !u!1 &1405944876
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,4 +1,6 @@
-namespace AndX.Core
+using System;
+
+namespace Parful.AndX.Core
 {
     /// <summary>
     /// AndX 契约常量（镜像 <c>andx-sdk-spec</c>，只读 SSOT）。
@@ -6,8 +8,8 @@ namespace AndX.Core
     /// </summary>
     public static class AndXContract
     {
-        /// <summary>契约版本，对应 spec <c>ANDX_CONTRACT_VERSION</c>。1.1 新增 AI 能力域；1.2 节点签名改 v2（含查询串，破坏性）。</summary>
-        public const string Version = "1.2";
+        /// <summary>契约版本，对应 spec <c>ANDX_CONTRACT_VERSION</c>。1.3 新增反向上传能力。</summary>
+        public const string Version = "1.5";
 
         /// <summary>端侧默认值（与 AndXEdge 约定一致；变更须先改契约包）。</summary>
         public static class Defaults
@@ -42,12 +44,22 @@ namespace AndX.Core
             public const string EdgeTickets = "/api/edge/tickets";
             public const string EdgeUploads = "/api/edge/uploads";
             public const string EdgeResources = "/api/edge/resources";
+            public const string ReceiveUploadSessions = "/api/edge/receive-upload-sessions";
 
             /// <summary>节点自助注册（唯一免节点鉴权的控制面端点，solution §16.2）。</summary>
             public const string EdgeEnroll = "/api/edge/enroll";
 
             /// <summary>节点自省：本机身份 + 授权展项集合（节点 HMAC 鉴权，S7）。</summary>
             public const string DeviceSelf = "/api/devices/self";
+
+            /// <summary>节点心跳：保活并取回 MQTT 掉线期间的启动/停止兜底指令。</summary>
+            public const string DeviceHeartbeat = "/api/devices/heartbeat";
+
+            /// <summary>节点状态上报：STARTING / PLAYING / IDLE / ERROR / OFFLINE。</summary>
+            public static string DeviceState(string nodeId)
+            {
+                return "/api/devices/" + Uri.EscapeDataString(nodeId ?? string.Empty) + "/state";
+            }
 
             /// <summary>节点自省：本节点最近的控制面审计流水（1~100 条，默认 20）。</summary>
             public static string DeviceSelfAudit(int limit)
@@ -150,7 +162,19 @@ namespace AndX.Core
             }
         }
 
-        /// <summary>订单业务类型。</summary>
+        /// <summary>反向上传会话状态。</summary>
+    public static class ReceiveUploadStatuses
+    {
+        public const string Waiting = "WAITING";
+        public const string Uploading = "UPLOADING";
+        public const string Processing = "PROCESSING";
+        public const string Completed = "COMPLETED";
+        public const string Expired = "EXPIRED";
+        public const string Canceled = "CANCELED";
+        public const string Failed = "FAILED";
+    }
+
+    /// <summary>订单业务类型。</summary>
         public static class OrderBizTypes
         {
             public const string ExhibitInteraction = "EXHIBIT_INTERACTION";
@@ -212,7 +236,39 @@ namespace AndX.Core
             public const string EdgeUnauthorized = "EDGE_UNAUTHORIZED";
             public const string EdgeDisabled = "EDGE_DISABLED";
             public const string EdgeUploadNotFound = "EDGE_UPLOAD_NOT_FOUND";
+            public const string ReceiveUploadNotFound = "RECEIVE_UPLOAD_NOT_FOUND";
+            public const string ReceiveUploadExpired = "RECEIVE_UPLOAD_EXPIRED";
+            public const string ReceiveUploadClosed = "RECEIVE_UPLOAD_CLOSED";
+            public const string ReceiveUploadTooLarge = "RECEIVE_UPLOAD_TOO_LARGE";
+            public const string ReceiveUploadTypeUnsupported = "RECEIVE_UPLOAD_TYPE_UNSUPPORTED";
+            public const string ReceiveUploadImageInvalid = "RECEIVE_UPLOAD_IMAGE_INVALID";
+            public const string ReceiveUploadInProgress = "RECEIVE_UPLOAD_IN_PROGRESS";
+            public const string ReceiveUploadAlreadyCompleted = "RECEIVE_UPLOAD_ALREADY_COMPLETED";
+            public const string ReceiveUploadFailed = "RECEIVE_UPLOAD_FAILED";
+            public const string ReceiveUploadCropInvalid = "RECEIVE_UPLOAD_CROP_INVALID";
+            public const string ReceiveUploadAspectMismatch = "RECEIVE_UPLOAD_ASPECT_MISMATCH";
+            public const string ReceiveUploadImageTooSmall = "RECEIVE_UPLOAD_IMAGE_TOO_SMALL";
             public const string EdgeUploadIncomplete = "EDGE_UPLOAD_INCOMPLETE";
+
+            // Web BFF（浏览器会话与安全边界）
+            public const string WebBffDisabled = "WEB_BFF_DISABLED";
+            public const string WebBffUnauthorized = "WEB_BFF_UNAUTHORIZED";
+            public const string WebBffCsrfInvalid = "WEB_BFF_CSRF_INVALID";
+            public const string WebBffOriginForbidden = "WEB_BFF_ORIGIN_FORBIDDEN";
+            public const string WebBffUpstreamError = "WEB_BFF_UPSTREAM_ERROR";
+
+            // 展项交互协议（AIP v1）
+            public const string AipUnsupportedProtocol = "AIP_UNSUPPORTED_PROTOCOL";
+            public const string AipSessionRequired = "AIP_SESSION_REQUIRED";
+            public const string AipSessionExpired = "AIP_SESSION_EXPIRED";
+            public const string AipRoleForbidden = "AIP_ROLE_FORBIDDEN";
+            public const string AipLeaseRequired = "AIP_LEASE_REQUIRED";
+            public const string AipLeaseConflict = "AIP_LEASE_CONFLICT";
+            public const string AipLeaseExpired = "AIP_LEASE_EXPIRED";
+            public const string AipCommandExpired = "AIP_COMMAND_EXPIRED";
+            public const string AipDuplicateCommand = "AIP_DUPLICATE_COMMAND";
+            public const string AipHostTimeout = "AIP_HOST_TIMEOUT";
+            public const string AipDeviceOffline = "AIP_DEVICE_OFFLINE";
 
             // 展项服务能力（开通 / 门禁）
             public const string CapabilityNotEnabled = "CAPABILITY_NOT_ENABLED";

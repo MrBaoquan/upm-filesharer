@@ -3,15 +3,15 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
-using AndX.Unity;
+using Parful.AndX;
+using Parful.AndX.Core;
+using Parful.AndX.Unity;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.UI;
 using Debug = UnityEngine.Debug;
 
-namespace AndX.Samples
+namespace Parful.AndX.Samples
 {
     /// <summary>
     /// 示例 3（AI Image）：**图生图（换脸/融合）** + 结果图显示 + 二维码。
@@ -34,8 +34,8 @@ namespace AndX.Samples
         [Tooltip("Direct=直连 AndX 云服务：插件持本机节点凭据；Edge=经本机 AndXEdge；Auto=有凭据则直连")]
         public AndXAccessMode accessMode = AndXAccessMode.Direct;
 
-        [Tooltip("基址：留空 = 默认云服务基址；也可用环境变量 ANDX_ENDPOINT（本机联调填 http://127.0.0.1）")]
-        public string endpoint = "";
+        [Tooltip("基址：默认线上 https://andx.andcrane.com；联调时可覆盖")]
+        public string endpoint = "https://andx.andcrane.com";
 
         [Header("参考图（相对 Assets/StreamingAssets/）")]
         [Tooltip("人脸图（相对 Assets/StreamingAssets/）：**留空=用示例自带的 faceImage**（现场换图无需重编则填这里）")]
@@ -72,8 +72,8 @@ namespace AndX.Samples
         [Tooltip("生成张数（可选）：1 起；0 = 由服务端决定。>1 时用「下一张 / 上一张」切换")]
         public int imageCount = 1;
 
-        [Tooltip("展项 ID（可选）：直连时留空——服务端按节点绑定裁决；仅 Hub 中控才必须逐次携带")]
-        public string exhibitId = "";
+        [Tooltip("展项 ID：线上专项测试默认 2；展项机按节点绑定时可留空，Hub 中控必须逐次携带")]
+        public string exhibitId = "2";
 
         [Tooltip("轮询间隔（毫秒）：越小结果回得越快（尾部空转越少），但也越频繁；建议 500~1000")]
         public int pollIntervalMs = 700;
@@ -119,7 +119,7 @@ namespace AndX.Samples
             }
             try
             {
-                AICapabilitiesResult caps = await AndX.AI.GetCapabilitiesAsync();
+                AICapabilitiesResult caps = await global::AndX.AI.GetCapabilitiesAsync();
                 if (!caps.Available)
                 {
                     Debug.LogWarning($"[AndX.AI] 当前不可用：{caps.Reason}");
@@ -175,7 +175,7 @@ namespace AndX.Samples
                 // ② 提交任务（两段式：先拿 jobNo，再轮询——这样才能分别计量「提交」与「等待」）
                 SetStatus("提交生图任务…");
                 var submitSw = Stopwatch.StartNew();
-                AIJob job = await AndX.AI.CreateImageJobAsync(new AIImageRequest
+                AIJob job = await global::AndX.AI.CreateImageJobAsync(new AIImageRequest
                 {
                     Prompt = prompt,
                     Size = resolvedSize,
@@ -193,7 +193,7 @@ namespace AndX.Samples
                     Timeout = TimeSpan.FromMinutes(4),
                     Interval = TimeSpan.FromMilliseconds(Mathf.Max(200, pollIntervalMs)),
                 };
-                AIJob done = await AndX.AI.WaitForJobAsync(
+                AIJob done = await global::AndX.AI.WaitForJobAsync(
                     job.JobNo,
                     waitOptions: waitOptions,
                     progress: new Progress<AIJob>(j => SetStatus($"AI {j.Status}…")));
@@ -325,7 +325,7 @@ namespace AndX.Samples
             }
             try
             {
-                IssuedTicket ticket = await AndX.Share.IssueResourceTicketAsync(job.MediaId);
+                IssuedTicket ticket = await global::AndX.Share.IssueResourceTicketAsync(job.MediaId);
                 DisplayQRCode.texture = await ticket.LoadQrTextureAsync();
                 Debug.Log($"[AndX.AI] 已出码 token={ticket.Token} 链接={ticket.ShareUrl}");
             }
@@ -518,20 +518,35 @@ namespace AndX.Samples
                 sizeText = "示例自带";
             }
             var scaled = Downscale(source, Mathf.Max(256, referenceMaxEdge));
-            var jpeg = scaled.EncodeToJPG(Mathf.Clamp(referenceJpegQuality, 1, 100));
+            var scaledWidth = scaled.width;
+            var scaledHeight = scaled.height;
+            byte[] jpeg;
+            try
+            {
+                jpeg = scaled.EncodeToJPG(Mathf.Clamp(referenceJpegQuality, 1, 100));
+                if (jpeg == null || jpeg.Length == 0)
+                {
+                    throw new AndXException(AndXContract.SdkErrorCodes.Configuration, $"参考图编码失败：{label}");
+                }
+            }
+            finally
+            {
+                if (scaled != source)
+                {
+                    UnityEngine.Object.Destroy(scaled);
+                }
+            }
             Debug.Log($"[AndX.AI] 参考图 {label}：{source.width}x{source.height}（{sizeText}）→ "
-                + $"{scaled.width}x{scaled.height} JPEG {jpeg.Length / 1024}KB（base64 后约 {jpeg.Length * 4 / 3 / 1024}KB）");
-            return new EncodedReference("data:image/jpeg;base64," + Convert.ToBase64String(jpeg), scaled.width, scaled.height);
+                + $"{scaledWidth}x{scaledHeight} JPEG {jpeg.Length / 1024}KB（base64 后约 {jpeg.Length * 4 / 3 / 1024}KB）");
+            return new EncodedReference("data:image/jpeg;base64," + Convert.ToBase64String(jpeg), scaledWidth, scaledHeight);
         }
 
         private static Texture2D Downscale(Texture2D source, int maxEdge)
         {
+            // 即使尺寸已经满足要求，也要经过一次未压缩 RGB 纹理拷贝：
+            // 导入纹理常见为 DXT/ETC 等压缩格式，EncodeToJPG 不支持直接编码压缩纹理。
             var longest = Mathf.Max(source.width, source.height);
-            if (longest <= maxEdge)
-            {
-                return source;
-            }
-            var scale = (float)maxEdge / longest;
+            var scale = longest > maxEdge ? (float)maxEdge / longest : 1f;
             var width = Mathf.Max(1, Mathf.RoundToInt(source.width * scale));
             var height = Mathf.Max(1, Mathf.RoundToInt(source.height * scale));
             var rt = RenderTexture.GetTemporary(width, height, 0, RenderTextureFormat.ARGB32);
@@ -576,14 +591,14 @@ namespace AndX.Samples
         {
             try
             {
-                AndX.Config.InitAuto(new AndXOptions
+                global::AndX.Config.InitAuto(new AndXOptions
                 {
                     AccessMode = accessMode,
                     Endpoint = string.IsNullOrEmpty(endpoint) ? null : endpoint,
                     ExhibitId = string.IsNullOrEmpty(exhibitId) ? null : exhibitId,
                     EdgeKey = EdgeKey.FromEnvironment(),
                 });
-                Debug.Log($"[AndX] 接入方式 = {AndX.Config.Describe()}");
+                Debug.Log($"[AndX] 接入方式 = {global::AndX.Config.Describe()}");
                 return true;
             }
             catch (AndXException e)
@@ -595,7 +610,7 @@ namespace AndX.Samples
 
         private bool EnsureConfigured()
         {
-            if (AndX.Config.IsConfigured)
+            if (global::AndX.Config.IsConfigured)
             {
                 return true;
             }
@@ -609,7 +624,7 @@ namespace AndX.Samples
 
         private void OnDestroy()
         {
-            AndX.Config.Reset();
+            global::AndX.Config.Reset();
         }
     }
 }

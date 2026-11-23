@@ -7,8 +7,112 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-11-05
+
 ### Added
 
+- **可运行 Capability 场景**：新增 `Samples~/AndX AIP Host/AndXAipCapabilityDemo.unity`，自动演示 `start → PLAYING → qiuqian.draw → IDLE`，无需连接生产 AIP。
+- **运行时验证面板**：场景显示当前状态、命令结果和 state.publish revision，并支持重新运行。
+
+### Changed
+
+- **AIP Host 示例说明**：补充场景导入、运行方式和与真实 AIP 联调的边界说明。
+
+
+## [2.4.0] - 2026-11-05
+
+### Added
+
+- **Capability Router**：`ExhibitRuntimeOptions.CapabilityHandlers` 支持注册版本化业务能力 Handler；求签机示例新增 `qiuqian.draw`。
+- **安全执行边界**：业务能力仅在 `PLAYING` 状态运行，复用命令去重；`safety.stop` 会取消进行中的能力动作。
+- **服务端契约对接**：能力请求必须匹配 Capability Manifest 授权、参数 Schema、履约 session 与 lease，生命周期 action 继续由 `andx-fulfillment/1.0` 独占。
+
+### Changed
+
+- **AIP 示例**：`Samples~/AndX AIP Host` 增加 Capability Handler 注册和求签业务骨架。
+
+
+## [2.3.0] - 2026-11-05
+
+### Added
+
+- **AIP ExhibitRuntime**：新增 `AndX.ExhibitRuntime` 门面、`IDLE → STARTING → PLAYING → IDLE` 状态机、120 秒启动确认超时、安全停止和单调 revision 状态上报。
+- **命令去重持久化**：新增 `FileExhibitCommandStore` 与 `UnityExhibitCommandStore`；执行前记录 pending，默认保留 7 天或最近 100 条，崩溃后阻止自动重放。
+
+## [2.2.1] - 2026-10-23
+
+### Changed
+
+- **UNIHper 示例 UI**：重构为面向现场操作的浅色工作台，突出“扫码收图”主流程；技术配置、接口参数和运行日志收纳到默认折叠的“运行诊断”。
+- **示例交互**：页面默认保持空闲，所有能力入口始终可切换；启动新能力时取消上一个 Observable、二维码加载任务与按钮选中状态。
+
+### Fixed
+
+- **扫码收图切换**：扫码等待中切换到其他能力时，旧上传会话会调用取消接口并进入 `CANCELED`，避免失效二维码和悬挂会话。
+
+## [2.2.0] - 2026-10-22
+
+### Added
+
+- **扫码收图 / 反向上传**：新增 `receive_upload_session` 会话、节点创建/查询/取消接口和公网 token 上传接口。
+- **普通链接双入口**：二维码固定为 `{PUBLIC_BASE_URL}/u/{token}`；微信通过“扫普通链接二维码打开小程序”进入 `pages/upload/index`，普通浏览器使用同一 URL 的 H5 兜底页；不使用小程序码。
+- **小程序上传页**：支持 `q`/`token` 解析、`wx.chooseMedia`、压缩、上传进度、成功/失败/过期状态和静默登录。
+- **SDK 与 UNIHper**：新增 `CreateReceiveUploadSessionAsync`、`GetReceiveUploadSessionAsync`、`CancelReceiveUploadSessionAsync` 和一句代码的 `ReceiveImageAsObservable` 状态流。
+- **服务端图片规范化**：JPEG/PNG/WebP 真实解码校验、尺寸与大小限制、方向纠正、EXIF 移除和统一 JPEG 转码。
+- **契约 1.3**：同步反向上传普通链接、路径和稳定错误码；向后兼容。
+
+## [2.1.1] - 2026-10-22
+
+### Fixed
+
+- 付费启动示例在 `PLAYING` 后缺少结束状态上报，导致展项持续非空闲、下一次签付费码返回 `EXHIBIT_BUSY`。示例现在保留 3 秒运行展示后自动上报 `IDLE`，并在复位前保持操作按钮禁用。
+
+## [2.1.0] - 2026-10-22
+
+### Added
+
+- **AndX.xml 开发凭据**：`AndXUNIHperSettings` 新增 `NodeSecret`、`EdgeKey`、`AccessToken`、`EnrollmentToken`。开发期可直接在配置文件中填写；`NodeSecret` 必须与 `NodeId` 配套，生产仍建议使用环境变量、部署凭据或宿主注入。
+- **节点密钥可查看/复制**：管理后台新增节点密钥查看接口与页面操作，可直接复制密钥及 `AndX.xml` 接入片段；查看与轮换均写入业务审计，审计不记录明文。
+- **密钥归属语义**：明确展项节点密钥归属单个展项，项目中控节点密钥归属项目并可授权多个展项；项目级第三方凭据仍由配置中心管理。
+- **项目开发交接表**：管理后台支持按项目导出 CSV，包含展项 ID、项目编号+展项编号、节点信息与密钥；导出需输入项目编号确认并写审计。
+- **打包后可配置**：配置路径保持 UNIHper `AppPath.Auto` 语义，桌面构建直接读取 `StreamingAssets/Configs/AndX.xml`，Android/WebGL 使用框架可写目录。
+- **示例上传稳定性**：上传票据成功与二维码纹理渲染解耦；二维码图片请求 10 秒超时，不再阻塞下载授权等后续操作。
+- **节点心跳与状态上报**：新增 `AndX.Node.HeartbeatAsync(exhibitId)`、`ReportStateAsync(...)` 以及对应 `*AsObservable`；支持 Hub 节点按已授权展项取回支付后的 `start` 兜底指令。
+- **付费开始游戏示例**：`AndXUNIHperDemo` 增加付费展项 ID、三步付费流程和显式启动按钮；收到 `start` 后依次上报 `STARTING`、`PLAYING`，并展示订单号与命令 ID。
+- **能力按钮选中态**：示例操作按钮显示 `action-selected` 高亮与悬停态，异步自动任务不会覆盖用户最后选择的能力提示。
+
+### Fixed
+
+- 修复 Hub 节点心跳未携带 `exhibitId` 时无法读取目标展项兜底指令的问题；服务端现在校验 `node_exhibit` 授权并使用目标展项读取/消费 `start` 指令。
+
+## [2.0.0] - 2026-10-22
+
+### Added
+
+- **全局门面**：新增全局静态类 `AndX`，以 readonly 服务实例暴露 `AndX.Config`、`AndX.Share`、`AndX.Pay`、`AndX.AI`、`AndX.Node`，业务调用形式保持 `AndX.<能力>.<方法>`。
+- **UNIHper 自动配置**：`AndXUNIHperSettings : UConfig` 随 UNIHper 生命周期加载 `AndX.xml` 并在 `OnLoaded()` 自动初始化；服务域名、`AccessMode`、超时与重试无需业务代码接入。
+- **UniRx 业务扩展**：`AndX.Share.UploadAsObservable`、`AndX.Pay.CreateTicketAsObservable`、`AndX.AI.GenerateImageAsObservable` 及其余公开异步接口的 `*AsObservable` 扩展；冷流、Dispose 取消底层 Task、回调统一切回主线程。
+- **UNIHper 回归测试**：新增 EditMode 配置生命周期测试与 PlayMode 冷流 / 主线程 / 取消测试。
+- **UNIHper 示例场景**：新增 `AndX UNIHper Integration`，场景 `AndXUNIHperDemo` 使用 `SceneScriptBase` 生命周期与 UNIHper 管理的 UI Toolkit 页面，零显式初始化调用 `AndX.Share.UploadAsObservable`；进入场景自动上传测试纹理并出码；页面同时覆盖扫码解析、下载授权、付费票据、订单查询、AI 文字和显式 AI 生图入口。Exhibit ID 默认 2 且可修改，支持运行时重载 `AndX.xml`。
+- README 与 `Documentation~/UNIHper.md` 改为代码优先，补充自动配置、外部 XML 修改和 UniRx 最小示例。
+
+### Changed (BREAKING)
+
+- 实现类型从命名空间 `AndX` 迁移到 `Parful.AndX`；全局静态类 `AndX` 与同名命名空间不能共存。旧写法 `using AndX;` → 新写法 `using Parful.AndX;`，业务入口 `AndX.Share.*` / `AndX.Pay.*` / `AndX.AI.*` 不变。
+- `Config` / `Share` / `Pay` / `AI` / `Node` 从静态类改为可由 `AndX` 门面持有的服务实例；直接静态调用 `Share.UploadAsync` 等需改为 `AndX.Share.UploadAsync`。
+- UNIHper 品牌在程序集、目录、命名空间与代码标识中统一使用 `UNIHper`；UPM 包 ID 保持 registry 要求的 `com.parful.unihper`。
+
+## [1.2.1] - 2026-10-22
+
+### Changed
+
+- README 改为代码优先：安装信息只保留包 ID 和 registry 依赖声明，重点展示独立使用与 UNIHper 业务封装示例；包核心继续零第三方框架依赖。
+## [1.2.0] - 2026-10-22
+
+### Added
+
+- **UNIHper 可选集成**：新增 `AndX.Integration.UNIHper` 软依赖程序集、`AndXUNIHperSettings : UConfig` 配置文件、`AndXUNIHperBridge` 自动初始化/异步注册/显式重载入口，以及 `AndX.Integration.UNIHper.Editor` 程序集自动注册器。安装 UNIHper 后无需工程侧配置代码；核心包未安装 UNIHper 时保持独立可用。
+- **线上专项测试示例**：`Scan And Download` 新增 Game 视图测试面板，可在真实线上环境切换免费/付费图片与免费/付费视频四类长期票据；`Pay Ticket` 默认连接 `AUTOTEST` 专项项目中的付费互动展项。节点密钥仅从本机凭据文件读取，付费下载登录态通过 `ANDX_E2E_USER_TOKEN` 临时注入。
 - **AI 示例改为图生图（换脸/融合）+ 结果图与二维码并行**：参考图取自 `Assets/StreamingAssets/`（默认「人脸.png」「模板.png」，可改），端侧**缩到长边 ≤1280 并转 JPEG** 后内联 base64 提交（示例实测 4.2MB → 326KB，请求体 5.65MB → 436KB）；服务端把参考图透传为厂商 `image` 字段（内网 MinIO 厂商不可达，故不走 URL）。示例新增**分段耗时日志**（读图编码 / 提交 / 生成等待 / 结果图+二维码），并把「显示结果图」与「出码+二维码」改为 `Task.WhenAll` 并行；轮询间隔可配（`pollIntervalMs`，默认 700ms）。
 - **直连模式默认基址**：新增 `AndXContract.Defaults.CloudEndpoint = "https://andx.andcrane.com"`；`Config.InitAuto` 的直连基址回退顺序为「显式 `AndXOptions.Endpoint` → 环境变量 `ANDX_ENDPOINT` → 默认云服务基址」，因此 `InitAuto()` 在没配任何东西时也能直接连上（不再抛 `CONFIGURATION`），`ResolutionReason` 会写明基址来自哪里。
 - **AI 产物取用（结果图，不止二维码）**：`AIJob.ResultCount` / `ResultUrl` / `ResultUrlAt(index)`；`AndX.AI.GetResultBytesAsync(job | jobNo, index)`（快路径 / 先刷新两条路）、`AndX.AI.SaveResultAsync(job | jobNo, index, filePath)`；Unity 侧 `AndX.Unity.AIResultLoader`（`LoadTextureAsync` 显示纹理、`SaveAsync` 落盘，默认 `persistentDataPath/andx/ai/`）与扩展方法 `job.LoadResultTextureAsync(index)`。**结果图地址是 presigned（10 分钟）**：带 `jobNo` 的重载会先查任务拿新地址——长期展示 / 延迟取图不再依赖 `ResultUrls` 的新鲜度。

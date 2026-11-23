@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
+using Parful.AndX;
+using Parful.AndX.Core;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     /// <summary>
     /// AI 产物取用（结果图字节 / 落盘 / 多图索引）的回归。
@@ -22,12 +22,12 @@ namespace AndX.Tests
 
         public AIResultTests()
         {
-            Config.Reset();
+            global::AndX.Config.Reset();
         }
 
         public void Dispose()
         {
-            Config.Reset();
+            global::AndX.Config.Reset();
             foreach (var file in _tempFiles)
             {
                 try
@@ -98,9 +98,9 @@ namespace AndX.Tests
         public async Task GetResultBytesAsync_fast_path_uses_url_from_job()
         {
             var transport = new FakeTransport((req, i) => BytesResponse(PngBytes));
-            Config.Init(new AndXOptions { Endpoint = "https://api.test" }, transport);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://api.test" }, transport);
 
-            var bytes = await AI.GetResultBytesAsync(SampleJob(), index: 1);
+            var bytes = await global::AndX.AI.GetResultBytesAsync(SampleJob(), index: 1);
 
             Assert.Equal(PngBytes, bytes);
             Assert.Equal("https://minio.test/b.png?sig=2", transport.Requests[0].Url);
@@ -112,9 +112,9 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => req.Url.Contains("/api/ai/jobs/")
                 ? FakeResponse.Ok(JobJson("https://minio.test/fresh.png?sig=9"))
                 : BytesResponse(PngBytes));
-            Config.Init(new AndXOptions { Endpoint = "https://api.test" }, transport);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://api.test" }, transport);
 
-            var bytes = await AI.GetResultBytesAsync("JOB-1");
+            var bytes = await global::AndX.AI.GetResultBytesAsync("JOB-1");
 
             Assert.Equal(PngBytes, bytes);
             Assert.Equal(2, transport.Requests.Count);
@@ -125,9 +125,9 @@ namespace AndX.Tests
         [Fact]
         public async Task GetResultBytesAsync_throws_readable_error_when_index_out_of_range()
         {
-            Config.Init(new AndXOptions { Endpoint = "https://api.test" }, new FakeTransport((req, i) => BytesResponse(PngBytes)));
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://api.test" }, new FakeTransport((req, i) => BytesResponse(PngBytes)));
 
-            var ex = await Assert.ThrowsAsync<AndXException>(() => AI.GetResultBytesAsync(SampleJob(), index: 5));
+            var ex = await Assert.ThrowsAsync<AndXException>(() => global::AndX.AI.GetResultBytesAsync(SampleJob(), index: 5));
 
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
             Assert.Contains("第 5 张", ex.Message);
@@ -140,9 +140,9 @@ namespace AndX.Tests
             var dir = Path.Combine(Path.GetTempPath(), "andx-ai-" + Guid.NewGuid().ToString("N"));
             var file = Path.Combine(dir, "nested", "result-0.png");
             _tempFiles.Add(file);
-            Config.Init(new AndXOptions { Endpoint = "https://api.test" }, new FakeTransport((req, i) => BytesResponse(PngBytes)));
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://api.test" }, new FakeTransport((req, i) => BytesResponse(PngBytes)));
 
-            var written = await AI.SaveResultAsync(SampleJob(), 0, file);
+            var written = await global::AndX.AI.SaveResultAsync(SampleJob(), 0, file);
 
             Assert.Equal(file, written);
             Assert.True(File.Exists(file));
@@ -152,9 +152,9 @@ namespace AndX.Tests
         [Fact]
         public async Task SaveResultAsync_requires_target_path()
         {
-            Config.Init(new AndXOptions { Endpoint = "https://api.test" }, new FakeTransport((req, i) => BytesResponse(PngBytes)));
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://api.test" }, new FakeTransport((req, i) => BytesResponse(PngBytes)));
 
-            var ex = await Assert.ThrowsAsync<AndXException>(() => AI.SaveResultAsync(SampleJob(), 0, " "));
+            var ex = await Assert.ThrowsAsync<AndXException>(() => global::AndX.AI.SaveResultAsync(SampleJob(), 0, " "));
 
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
         }

@@ -1,9 +1,9 @@
-using AndX;
-using AndX.Unity;
+using Parful.AndX;
+using Parful.AndX.Unity;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace AndX.Samples
+namespace Parful.AndX.Samples
 {
     /// <summary>
     /// 示例 4（Pay Ticket）：展项付费票据签发与订单状态查询。
@@ -22,12 +22,18 @@ namespace AndX.Samples
             + "Auto=本机有节点凭据则直连，否则走 Edge")]
         public AndXAccessMode accessMode = AndXAccessMode.Direct;
 
-        [Tooltip("基址：Direct=后端基址（留空读环境变量 ANDX_ENDPOINT）；Edge=本机 Edge 基址（留空用 http://127.0.0.1:6699）")]
-        public string endpoint = "";
+        [Tooltip("基址：默认线上 https://andx.andcrane.com；联调时可覆盖。Edge 模式默认使用 http://127.0.0.1:6699")]
+        public string endpoint = "https://andx.andcrane.com";
 
         [Header("示例参数")]
-        [Tooltip("展项 ID（可选）：展项机留空——由服务端按节点绑定裁决；只有 role=hub 的中控才必须逐次携带")]
-        public string exhibitId = "";
+        [Tooltip("展项 ID：线上专项测试默认 6；展项机可留空，只有 role=hub 的中控才必须逐次携带")]
+        public string exhibitId = "6";
+
+        [Header("线上专项测试（AUTOTEST）")]
+        [Tooltip("默认使用专项测试中的付费互动展项；关闭后可改用自己的展项")]
+        public bool useOnlinePaidInteractionCase = true;
+
+        public string onlinePaidInteractionExhibitId = "6";
 
         [Tooltip("可选：显示二维码的 RawImage")]
         public RawImage DisplayQRCode;
@@ -41,8 +47,14 @@ namespace AndX.Samples
         [Tooltip("Play 后自动跑一次主流程（示例默认开启：导入即可看到付费码）；关掉后只等按钮 / 齿轮菜单触发")]
         public bool autoRunOnStart = true;
 
+        private string currentShareUrl;
+
         private void Awake()
         {
+            if (useOnlinePaidInteractionCase && string.IsNullOrEmpty(exhibitId))
+            {
+                exhibitId = onlinePaidInteractionExhibitId;
+            }
             // 统一入口：按 accessMode 解析基址与凭据；结果（含为什么这么选）打到 Console，不含任何密钥
             TryConfigure();
         }
@@ -65,11 +77,12 @@ namespace AndX.Samples
 
             try
             {
-                PayTicket ticket = await AndX.Pay.CreateTicketAsync(new PayTicketOptions
+                PayTicket ticket = await global::AndX.Pay.CreateTicketAsync(new PayTicketOptions
                 {
                     ExhibitId = string.IsNullOrEmpty(exhibitId) ? null : exhibitId,
                 });
                 orderNo = ticket.OrderNo;
+                currentShareUrl = ticket.ShareUrl;
                 Debug.Log($"[AndX.Pay] token={ticket.Token} 定价(分)={ticket.Amount} 订单={ticket.OrderNo} 链接={ticket.ShareUrl}");
                 SetStatus($"已签票 token={ticket.Token} 定价(分)={ticket.Amount} 订单={ticket.OrderNo ?? "-"}");
 
@@ -88,6 +101,24 @@ namespace AndX.Samples
             }
         }
 
+        private void OnGUI()
+        {
+            if (!Application.isPlaying || !useOnlinePaidInteractionCase)
+            {
+                return;
+            }
+            GUILayout.BeginArea(new Rect(16, 16, 360, 96), GUI.skin.box);
+            GUILayout.Label("AndX 线上付费互动");
+            if (GUILayout.Button("重新签发付费互动码"))
+            {
+                CreateTicket();
+            }
+            if (!string.IsNullOrEmpty(currentShareUrl) && GUILayout.Button("打开支付链接"))
+            {
+                Application.OpenURL(currentShareUrl);
+            }
+            GUILayout.EndArea();
+        }
         [ContextMenu("查询订单（QueryOrder）")]
         public async void QueryOrder()
         {
@@ -104,7 +135,7 @@ namespace AndX.Samples
 
             try
             {
-                OrderStatusInfo status = await AndX.Pay.QueryOrderAsync(orderNo);
+                OrderStatusInfo status = await global::AndX.Pay.QueryOrderAsync(orderNo);
                 Debug.Log($"[AndX.Pay] 订单={status.OrderNo} 状态={status.Status} 金额(分)={status.Amount} 支付时间={status.PayTime}");
                 SetStatus($"订单={status.OrderNo} 状态={status.Status} 金额(分)={status.Amount}");
             }
@@ -133,14 +164,14 @@ namespace AndX.Samples
         {
             try
             {
-                AndX.Config.InitAuto(new AndXOptions
+                global::AndX.Config.InitAuto(new AndXOptions
                 {
                     AccessMode = accessMode,
                     Endpoint = string.IsNullOrEmpty(endpoint) ? null : endpoint,
                     ExhibitId = string.IsNullOrEmpty(exhibitId) ? null : exhibitId,
                     EdgeKey = EdgeKey.FromEnvironment(),
                 });
-                Debug.Log($"[AndX] 接入方式 = {AndX.Config.Describe()}");
+                Debug.Log($"[AndX] 接入方式 = {global::AndX.Config.Describe()}");
                 return true;
             }
             catch (AndXException e)
@@ -152,7 +183,7 @@ namespace AndX.Samples
 
         private bool EnsureConfigured()
         {
-            if (AndX.Config.IsConfigured)
+            if (global::AndX.Config.IsConfigured)
             {
                 return true;
             }
@@ -167,7 +198,7 @@ namespace AndX.Samples
         private void OnDestroy()
         {
             // 场景切换 / 退出时清空配置（多场景复用与测试）
-            AndX.Config.Reset();
+            global::AndX.Config.Reset();
         }
     }
 }

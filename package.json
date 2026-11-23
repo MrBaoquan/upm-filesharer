@@ -1,10 +1,10 @@
 {
   "name": "com.parful.andx",
-  "version": "1.1.0",
+  "version": "2.4.1",
   "displayName": "AndX",
-  "description": "展项能力平台：通过二维码共享资源（图片/视频）与扫码付费",
+  "description": "展项能力平台：统一 AndX 门面、AIP v1 交互宿主、UNIHper 自动配置与 UniRx 接口，完成分享、付费与 AI 能力。",
   "unity": "2020.3",
-  "documentationUrl": "http://readme.andcrane.com:6875/books/upm/page/d2dde",
+  "documentationUrl": "http://upm.andcrane.com:4873/-/web/detail/com.parful.andx",
   "changelogUrl": "http://upm.andcrane.com:4873/-/web/detail/com.parful.andx",
   "license": "UNLICENSED",
   "dependencies": {
@@ -23,13 +23,18 @@
   },
   "samples": [
     {
+      "displayName": "AndX UNIHper Integration",
+      "description": "AndX UNIHper 全面示例：自动分享出码、扫码收图、下载授权、付费订单、AI 文字/生图、配置重载",
+      "path": "Samples~/AndX UNIHper Integration"
+    },
+    {
       "displayName": "Share And QR",
       "description": "上传 Texture2D 并显示二维码；含「直连后端 / 经本机 AndXEdge」接入方式开关（含可运行场景 ShareAndQr）",
       "path": "Samples~/Share And QR"
     },
     {
       "displayName": "Scan And Download",
-      "description": "扫码解析（预览 / 定价 / 是否已购）与下载授权；接入方式可在 Inspector 选择（默认直连）（含可运行场景 ScanAndDownload）",
+      "description": "扫码解析与下载授权；内置免费/付费图片、视频四类线上专项测试用例（含可运行场景 ScanAndDownload）",
       "path": "Samples~/Scan And Download"
     },
     {
@@ -39,13 +44,19 @@
     },
     {
       "displayName": "Pay Ticket",
-      "description": "展项付费票据签发与订单状态查询；接入方式可在 Inspector 选择（默认直连）（含可运行场景 PayTicket）",
+      "description": "展项付费票据签发与订单状态查询；默认使用线上专项测试付费互动展项（含可运行场景 PayTicket）",
       "path": "Samples~/Pay Ticket"
     },
     {
       "displayName": "AI Text",
       "description": "单轮文字互动：藏头诗 / 求签解签 / 祝福赠言（同步返回，无需轮询；输出校验在服务端）（含可运行场景 AiText）",
       "path": "Samples~/AI Text"
+    },
+    {
+      "displayName": "AndX AIP Host",
+      "description": "AIP v1 可运行能力路由示例：自动演示 start → PLAYING → qiuqian.draw → IDLE；生产接入请使用 ExhibitRuntime 与 IExhibitRuntimeAdapter",
+      "path": "Samples~/AndX AIP Host"
     }
-  ]
+  ],
+  "unityRelease": "0f1"
 }

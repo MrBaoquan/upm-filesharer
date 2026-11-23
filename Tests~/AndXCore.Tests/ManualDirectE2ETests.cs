@@ -1,11 +1,13 @@
 using System;
+using System.IO;
 using System.Linq;
+using System.Net.Http;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
+using Parful.AndX;
+using Parful.AndX.Core;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     /// <summary>
     /// **手动**端到端：插件直连真实后端（真实 HTTP + 真实节点 HMAC v2 + 真实审计落库）。
@@ -65,31 +67,31 @@ namespace AndX.Tests
                 AndXTransportProvider.Factory = () => new HttpTransport();
 
                 // ① 直连模式：插件持本机节点凭据（示例里凭据来自 persistentDataPath 的凭据文件）
-                Config.InitAuto(new AndXOptions
+                global::AndX.Config.InitAuto(new AndXOptions
                 {
                     AccessMode = AndXAccessMode.Direct,
                     Endpoint = endpoint,
                     NodeCredential = new NodeCredential(nodeId, secret),
                 });
 
-                Assert.Equal(AndXAccessMode.Direct, Config.ActiveMode);
-                Assert.Equal(nodeId, Config.ActiveNodeId);
-                Assert.DoesNotContain(secret, Config.Describe());
+                Assert.Equal(AndXAccessMode.Direct, global::AndX.Config.ActiveMode);
+                Assert.Equal(nodeId, global::AndX.Config.ActiveNodeId);
+                Assert.DoesNotContain(secret, global::AndX.Config.Describe());
 
                 // ② 节点自省：服务端认的展项 = 期望展项
-                NodeIdentity me = await Node.SelfAsync();
+                NodeIdentity me = await global::AndX.Node.SelfAsync();
                 Assert.Equal(nodeId, me.NodeId);
                 Assert.Equal(expectedExhibit, me.ExhibitId);
                 Assert.True(me.Enabled);
 
                 // ③ 真实上传：流式端点要带 x-device-body-sha256 且纳入签名，能 201 说明签名口径与服务端一致
-                ShareResult shared = await Share.UploadAsync(
+                ShareResult shared = await global::AndX.Share.UploadAsync(
                     new TestPayload(Convert.FromBase64String(OnePixelPngBase64), "andx-e2e.png"),
                     new UploadOptions { Title = "AndX 插件直连 E2E" });
                 Assert.False(string.IsNullOrEmpty(shared.Token));
 
                 // ④ 审计自省：这次上传必须记在「本节点 + 该展项」头上（这就是"审计到精确展项"）
-                var entries = await Node.RecentAuditAsync(limit: 50);
+                var entries = await global::AndX.Node.RecentAuditAsync(limit: 50);
                 var uploaded = entries.FirstOrDefault(e => e.Path != null && e.Path.Contains("/api/edge/resources"));
                 Assert.NotNull(uploaded);
                 Assert.Equal(expectedExhibit, uploaded.ExhibitId);
@@ -98,8 +100,94 @@ namespace AndX.Tests
             }
             finally
             {
-                Config.Reset();
+                global::AndX.Config.Reset();
                 AndXTransportProvider.Factory = savedFactory;
+            }
+        }
+
+        [Fact]
+        public async Task Credential_file_upload_qr_preview_and_free_download()
+        {
+            if (!Enabled)
+            {
+                return;   // 未开启：视为跳过
+            }
+
+            var endpoint = Required("ANDX_E2E_BASE");
+            var credentialFile = Required("ANDX_E2E_CREDENTIAL_FILE");
+            var expectedNode = Required("ANDX_E2E_NODE_ID");
+
+            var savedTransport = AndXTransportProvider.Factory;
+            var savedStore = AndXCredentialProvider.StoreFactory;
+            try
+            {
+                AndXTransportProvider.Factory = () => new HttpTransport();
+                AndXCredentialProvider.StoreFactory = () => new NodeCredentialStore(credentialFile);
+                global::AndX.Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Direct, Endpoint = endpoint });
+                Assert.Equal(expectedNode, global::AndX.Config.ActiveNodeId);
+
+                var imagePath = Environment.GetEnvironmentVariable("ANDX_E2E_IMAGE_PATH");
+                var useRealImage = !string.IsNullOrWhiteSpace(imagePath) && File.Exists(imagePath);
+                var bytes = useRealImage
+                    ? File.ReadAllBytes(imagePath!.Trim())
+                    : Convert.FromBase64String(OnePixelPngBase64);
+                var fileName = useRealImage ? Path.GetFileName(imagePath!.Trim()) : "andx-e2e-share.png";
+                var expectedMediaType =
+                    useRealImage && string.Equals(Path.GetExtension(fileName), ".mp4", StringComparison.OrdinalIgnoreCase)
+                        ? "video"
+                        : "image";
+                ShareResult shared = await global::AndX.Share.UploadAsync(
+                    new TestPayload(bytes, fileName),
+                    new UploadOptions { Title = "AndX 文件分享二维码 E2E" });
+
+                Assert.False(string.IsNullOrEmpty(shared.Token));
+                Assert.False(string.IsNullOrEmpty(shared.ShareUrl));
+                Assert.False(string.IsNullOrEmpty(shared.QrImageUrl));
+
+                ScanResolveResult scan = await global::AndX.Share.ResolveAsync(shared.Token);
+                Assert.Equal(AndXContract.Purposes.ResourceDownload, scan.Purpose);
+                Assert.NotNull(scan.Media);
+                Assert.Equal(expectedMediaType, scan.Media.Type);
+                Assert.Equal(0, scan.Media.Amount);
+                Assert.True(scan.Entitled);
+                Assert.False(string.IsNullOrEmpty(scan.PreviewUrl));
+
+                using (var http = new HttpClient())
+                {
+                    using (var sharePage = await http.GetAsync(shared.ShareUrl))
+                    {
+                        Assert.True(
+                            sharePage.IsSuccessStatusCode,
+                            "分享链接不可访问: " + shared.ShareUrl + " status=" + (int)sharePage.StatusCode);
+                    }
+
+                    byte[] preview = await http.GetByteArrayAsync(scan.PreviewUrl);
+                    Assert.NotEmpty(preview);
+
+                    byte[] qr = await http.GetByteArrayAsync(shared.QrImageUrl);
+                    Assert.True(qr.Length > 8);
+                    Assert.Equal(0x89, qr[0]);
+                    Assert.Equal((byte)'P', qr[1]);
+                    Assert.Equal((byte)'N', qr[2]);
+                    Assert.Equal((byte)'G', qr[3]);
+                }
+
+                DownloadResult download = await global::AndX.Share.GetDownloadAsync(shared.Token);
+                Assert.False(string.IsNullOrEmpty(download.Url));
+                Assert.Equal(expectedMediaType, download.Type);
+                Assert.True(download.ExpiresIn > 0);
+
+                using (var http = new HttpClient())
+                {
+                    byte[] original = await http.GetByteArrayAsync(download.Url);
+                    Assert.NotEmpty(original);
+                }
+            }
+            finally
+            {
+                global::AndX.Config.Reset();
+                AndXTransportProvider.Factory = savedTransport;
+                AndXCredentialProvider.StoreFactory = savedStore;
             }
         }
 
@@ -124,19 +212,19 @@ namespace AndX.Tests
                 // （工程里是 persistentDataPath/andx/node-credential.json）
                 AndXCredentialProvider.StoreFactory = () => new NodeCredentialStore(credentialFile);
 
-                Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Direct, Endpoint = endpoint });
+                global::AndX.Config.InitAuto(new AndXOptions { AccessMode = AndXAccessMode.Direct, Endpoint = endpoint });
 
-                Assert.Equal(AndXAccessMode.Direct, Config.ActiveMode);
-                Assert.Equal(expectedNode, Config.ActiveNodeId);   // 证明「落盘格式 + 保护器」可用
-                Assert.Contains("node:" + expectedNode, Config.Describe());
+                Assert.Equal(AndXAccessMode.Direct, global::AndX.Config.ActiveMode);
+                Assert.Equal(expectedNode, global::AndX.Config.ActiveNodeId);   // 证明「落盘格式 + 保护器」可用
+                Assert.Contains("node:" + expectedNode, global::AndX.Config.Describe());
 
-                NodeIdentity me = await Node.SelfAsync();
+                NodeIdentity me = await global::AndX.Node.SelfAsync();
                 Assert.Equal(expectedNode, me.NodeId);
                 Assert.True(me.Enabled);
             }
             finally
             {
-                Config.Reset();
+                global::AndX.Config.Reset();
                 AndXTransportProvider.Factory = savedTransport;
                 AndXCredentialProvider.StoreFactory = savedStore;
             }

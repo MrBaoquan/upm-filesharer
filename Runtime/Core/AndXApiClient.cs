@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 
-namespace AndX.Core
+namespace Parful.AndX.Core
 {
     /// <summary>
     /// AndX 控制面 HTTP 客户端：负责拼接地址、注入边缘密钥、统一信封解析、错误码映射与有限重试。

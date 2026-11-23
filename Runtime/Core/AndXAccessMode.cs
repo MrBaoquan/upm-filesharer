@@ -1,4 +1,4 @@
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>
     /// 接入方式（solution §16）：插件有两种接入形态，**业务调用完全一致**

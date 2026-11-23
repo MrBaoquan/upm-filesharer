@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace AndX.Core
+namespace Parful.AndX.Core
 {
     /// <summary>
     /// 节点凭据落盘（solution §16.2）：文件为 JSON，密钥字段经

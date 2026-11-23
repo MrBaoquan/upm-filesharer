@@ -1,7 +1,7 @@
-using AndX.Core;
+using Parful.AndX.Core;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     public class ChunkPlannerTests
     {

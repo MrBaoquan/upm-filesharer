@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX.Core;
+using Parful.AndX.Core;
 
-namespace AndX.Unity
+namespace Parful.AndX.Unity
 {
     /// <summary>
     /// **文字类互动**（藏头诗 / 求签解签 / 祝福赠言）：同步返回，**无需轮询**。
@@ -41,7 +41,7 @@ namespace AndX.Unity
             {
                 parameters["topic"] = topic;
             }
-            return AndX.AI.GenerateTextAsync(
+            return global::AndX.AI.GenerateTextAsync(
                 AndXContract.AITextScenarios.Acrostic,
                 parameters,
                 exhibitId: exhibitId,
@@ -67,7 +67,7 @@ namespace AndX.Unity
             {
                 parameters["drawNo"] = drawNo.Value;
             }
-            return AndX.AI.GenerateTextAsync(
+            return global::AndX.AI.GenerateTextAsync(
                 AndXContract.AITextScenarios.Fortune,
                 parameters,
                 exhibitId: exhibitId,
@@ -90,7 +90,7 @@ namespace AndX.Unity
             {
                 parameters["to"] = to;
             }
-            return AndX.AI.GenerateTextAsync(
+            return global::AndX.AI.GenerateTextAsync(
                 AndXContract.AITextScenarios.Blessing,
                 parameters,
                 exhibitId: exhibitId,

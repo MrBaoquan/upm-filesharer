@@ -2,9 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using AndX.Core;
+using Parful.AndX.Core;
 
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>
     /// 节点身份（solution §16.2 / §16.3）：首启**自助注册**，换取本机唯一的节点密钥。
@@ -22,7 +22,7 @@ namespace AndX
     /// AndX.Config.Init(new AndXOptions { Endpoint = endpoint, NodeCredential = credential });
     /// </code>
     /// </summary>
-    public static class Node
+    public class Node
     {
         /// <summary>注册请求超时（自助注册是短动作）。</summary>
         private static readonly TimeSpan EnrollTimeout = TimeSpan.FromSeconds(30);
@@ -34,7 +34,7 @@ namespace AndX
         ///   徒增 <c>ENROLLMENT_TOKEN_EXHAUSTED</c> 与半注册状态；失败请让运维重发令牌。
         /// - 成功后立即保存到 <paramref name="store"/>（本地加密落盘），**密钥只此一次返回**。
         /// </summary>
-        public static async Task<NodeCredential> EnrollAsync(
+        public async Task<NodeCredential> EnrollAsync(
             string endpoint,
             string enrollmentToken,
             string nodeId,
@@ -99,9 +99,9 @@ namespace AndX
         /// （<c>audit_request.exhibit_id</c>），因此是排障时最直接的证据。
         /// 需要节点身份（直连模式）；经 Edge 时身份由 Edge 代持，插件直呼会返回 <c>EDGE_UNAUTHORIZED</c>。
         /// </summary>
-        public static async Task<NodeIdentity> SelfAsync(CancellationToken cancellationToken = default)
+        public async Task<NodeIdentity> SelfAsync(CancellationToken cancellationToken = default)
         {
-            var data = await Config.Api
+            var data = await global::AndX.Config.Api
                 .GetRawAsync(AndXContract.Paths.DeviceSelf, cancellationToken)
                 .ConfigureAwait(false);
             var identity = data == null ? null : data.ToObject<NodeIdentity>(AndXJson.Serializer);
@@ -113,16 +113,93 @@ namespace AndX
         }
 
         /// <summary>
+        /// 节点心跳：保活并取回 MQTT 掉线期间的启动/停止兜底指令。
+        /// 付费成功后若 MQTT 未直达设备，可在端侧拉取到 <c>action=start</c> 指令。
+        /// </summary>
+        public async Task<NodeHeartbeatResult> HeartbeatAsync(
+            string exhibitId = null,
+            CancellationToken cancellationToken = default)
+        {
+            var path = AndXContract.Paths.DeviceHeartbeat;
+            if (!string.IsNullOrWhiteSpace(exhibitId))
+            {
+                path += "?exhibitId=" + Uri.EscapeDataString(exhibitId.Trim());
+            }
+            var data = await global::AndX.Config.Api
+                .PostRawAsync(path, null, cancellationToken)
+                .ConfigureAwait(false);
+            var result = data == null
+                ? null
+                : data.ToObject<NodeHeartbeatResult>(AndXJson.Serializer);
+            if (result == null)
+            {
+                throw new AndXException(
+                    AndXContract.ErrorCodes.InternalError,
+                    "节点心跳响应为空（服务端返回了非预期报文）"
+                );
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 上报节点状态。付费启动流程建议先上报 <c>STARTING</c>，真正进入互动后再上报 <c>PLAYING</c>。
+        /// Hub 节点必须显式传 <paramref name="exhibitId"/>；展项机可留空。
+        /// </summary>
+        public async Task<NodeStateResult> ReportStateAsync(
+            string state,
+            string orderNo = null,
+            string commandId = null,
+            string exhibitId = null,
+            CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(state))
+            {
+                throw new AndXException(
+                    AndXContract.SdkErrorCodes.Configuration,
+                    "ReportStateAsync.state 不能为空"
+                );
+            }
+            var nodeId = global::AndX.Config.ActiveNodeId;
+            if (string.IsNullOrWhiteSpace(nodeId))
+            {
+                throw new AndXException(
+                    AndXContract.SdkErrorCodes.Configuration,
+                    "节点状态上报需要本机节点身份（直连模式）"
+                );
+            }
+
+            var body = new Dictionary<string, object> { ["state"] = state.Trim().ToUpperInvariant() };
+            if (!string.IsNullOrWhiteSpace(orderNo)) body["orderNo"] = orderNo.Trim();
+            if (!string.IsNullOrWhiteSpace(commandId)) body["commandId"] = commandId.Trim();
+            if (!string.IsNullOrWhiteSpace(exhibitId)) body["exhibitId"] = exhibitId.Trim();
+
+            var data = await global::AndX.Config.Api
+                .PostRawAsync(AndXContract.Paths.DeviceState(nodeId), body, cancellationToken)
+                .ConfigureAwait(false);
+            var result = data == null
+                ? null
+                : data.ToObject<NodeStateResult>(AndXJson.Serializer);
+            if (result == null)
+            {
+                throw new AndXException(
+                    AndXContract.ErrorCodes.InternalError,
+                    "节点状态上报响应为空（服务端返回了非预期报文）"
+                );
+            }
+            return result;
+        }
+
+        /// <summary>
         /// 节点自省（S7）：本节点最近的控制面审计流水（1~100 条，默认 20）。
         /// 每条含服务端**已校验**的展项归属（<see cref="NodeAuditEntry.ExhibitId"/>）与最终结果码，
         /// 现场可直接回答「刚才那次调用算在哪个展项头上、为什么失败」。
         /// </summary>
-        public static async Task<IReadOnlyList<NodeAuditEntry>> RecentAuditAsync(
+        public async Task<IReadOnlyList<NodeAuditEntry>> RecentAuditAsync(
             int limit = 20,
             CancellationToken cancellationToken = default)
         {
             var safeLimit = limit < 1 ? 1 : (limit > 100 ? 100 : limit);
-            var data = await Config.Api
+            var data = await global::AndX.Config.Api
                 .GetRawAsync(AndXContract.Paths.DeviceSelfAudit(safeLimit), cancellationToken)
                 .ConfigureAwait(false);
             var items = data == null ? null : data["items"];

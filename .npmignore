@@ -1,0 +1,14 @@
+# Local Unity and build artifacts
+Library/
+Temp/
+Logs/
+obj/
+bin/
+UserSettings/
+*.csproj
+*.user
+*.tgz
+*.pdb
+*.mdb
+.vs/
+.idea/

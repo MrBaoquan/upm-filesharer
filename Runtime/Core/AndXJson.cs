@@ -1,7 +1,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
-namespace AndX.Core
+namespace Parful.AndX.Core
 {
     /// <summary>统一 JSON 序列化配置：出参 camelCase、忽略 null；入参大小写不敏感。</summary>
     public static class AndXJson

@@ -1,0 +1,9 @@
+{
+  "Persistence": [
+    {
+      "driver": "Resources",
+      "type": "Object",
+      "path": "UIToolkit"
+    }
+  ]
+}

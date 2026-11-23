@@ -2,23 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
+using Parful.AndX;
+using Parful.AndX.Core;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     public class ShareTests
     {
         public ShareTests()
         {
-            Config.Reset();
+            global::AndX.Config.Reset();
         }
 
         /// <summary>阈值设为 8 字节，便于用小样本覆盖分流与分片。</summary>
         private static void Configure(FakeTransport transport)
         {
-            Config.Init(new AndXOptions { Endpoint = "https://edge.example.com", EdgeKey = "edge-key", ChunkSize = 8 }, transport);
+            global::AndX.Config.Init(new AndXOptions { Endpoint = "https://edge.example.com", EdgeKey = "edge-key", ChunkSize = 8 }, transport);
         }
 
         private static FakeTransport Router(long chunkSize, long received, long total, List<string> putUrls, bool rejectOneShot = false)
@@ -59,7 +59,7 @@ namespace AndX.Tests
             var transport = Router(8, 0, 8, putUrls);
             Configure(transport);
 
-            var result = await Share.UploadAsync(
+            var result = await global::AndX.Share.UploadAsync(
                 new TestPayload(new byte[8]), new UploadOptions { ExhibitId = "1024", Title = "截图" });
 
             Assert.Equal("tok", result.Token);
@@ -84,7 +84,7 @@ namespace AndX.Tests
             var transport = Router(8, 0, 20, putUrls);
             Configure(transport);
 
-            var result = await Share.UploadAsync(
+            var result = await global::AndX.Share.UploadAsync(
                 new TestPayload(new byte[20]), new UploadOptions { ExhibitId = "1024" });
 
             Assert.Equal("tok", result.Token);
@@ -100,7 +100,7 @@ namespace AndX.Tests
             var transport = Router(8, 10, 20, putUrls);
             Configure(transport);
 
-            await Share.UploadAsync(new TestPayload(new byte[20]), new UploadOptions { ExhibitId = "1024" });
+            await global::AndX.Share.UploadAsync(new TestPayload(new byte[20]), new UploadOptions { ExhibitId = "1024" });
 
             Assert.Equal(new[] { 8L, 16L }, putUrls.Select(OffsetOf).ToArray());
         }
@@ -112,7 +112,7 @@ namespace AndX.Tests
             var transport = Router(8, 0, 16, putUrls);
             Configure(transport);
 
-            await Share.UploadAsync(new TestPayload(new byte[16]), new UploadOptions { ExhibitId = "1024" });
+            await global::AndX.Share.UploadAsync(new TestPayload(new byte[16]), new UploadOptions { ExhibitId = "1024" });
 
             Assert.All(transport.Requests, r => Assert.True(r.HasEdgeKey));
             var puts = transport.Requests.Where(r => r.Method == "PUT").ToList();
@@ -127,10 +127,40 @@ namespace AndX.Tests
             var transport = Router(8, 0, 8, putUrls, rejectOneShot: true);
             Configure(transport);
 
-            var result = await Share.UploadAsync(new TestPayload(new byte[8]), new UploadOptions { ExhibitId = "1024" });
+            var result = await global::AndX.Share.UploadAsync(new TestPayload(new byte[8]), new UploadOptions { ExhibitId = "1024" });
 
             Assert.Equal("tok", result.Token);
             Assert.Equal(new[] { 0L }, putUrls.Select(OffsetOf).ToArray());
+        }
+
+        [Fact]
+        public async Task Upload_infers_video_media_type_from_file_extension()
+        {
+            var putUrls = new List<string>();
+            var transport = Router(8, 0, 8, putUrls);
+            Configure(transport);
+
+            await global::AndX.Share.UploadAsync(
+                new TestPayload(new byte[8], "clip.mp4"),
+                new UploadOptions());
+
+            var request = transport.Requests.Single();
+            Assert.Contains("mediaType=video", request.Url);
+        }
+
+        [Fact]
+        public async Task Upload_explicit_media_type_overrides_extension_inference()
+        {
+            var putUrls = new List<string>();
+            var transport = Router(8, 0, 8, putUrls);
+            Configure(transport);
+
+            await global::AndX.Share.UploadAsync(
+                new TestPayload(new byte[8], "clip.mp4"),
+                new UploadOptions { MediaType = MediaType.Image });
+
+            var request = transport.Requests.Single();
+            Assert.Contains("mediaType=image", request.Url);
         }
 
         [Fact]
@@ -140,7 +170,7 @@ namespace AndX.Tests
             var transport = Router(8, 0, 8, putUrls);
             Configure(transport);
 
-            await Share.UploadAsync(new TestPayload(new byte[8]), new UploadOptions());
+            await global::AndX.Share.UploadAsync(new TestPayload(new byte[8]), new UploadOptions());
 
             var request = transport.Requests.Single();
             Assert.StartsWith("https://edge.example.com/api/edge/resources?", request.Url);
@@ -153,7 +183,7 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => FakeResponse.Ok("{}"));
             Configure(transport);
             var ex = await Assert.ThrowsAsync<AndXException>(
-                () => Share.UploadAsync(new TestPayload(Array.Empty<byte>()), new UploadOptions { ExhibitId = "1" }));
+                () => global::AndX.Share.UploadAsync(new TestPayload(Array.Empty<byte>()), new UploadOptions { ExhibitId = "1" }));
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
             Assert.Empty(transport.Requests);
         }
@@ -162,7 +192,7 @@ namespace AndX.Tests
         public async Task Upload_before_init_throws_configuration()
         {
             var ex = await Assert.ThrowsAsync<AndXException>(
-                () => Share.UploadAsync(new TestPayload(new byte[4]), new UploadOptions { ExhibitId = "1" }));
+                () => global::AndX.Share.UploadAsync(new TestPayload(new byte[4]), new UploadOptions { ExhibitId = "1" }));
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, ex.Code);
         }
 
@@ -172,7 +202,7 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => FakeResponse.Ok("{\"aborted\":true}"));
             Configure(transport);
 
-            await Share.AbortAsync("u_9");
+            await global::AndX.Share.AbortAsync("u_9");
 
             Assert.Equal("DELETE", transport.Requests.Single().Method);
             Assert.EndsWith("/api/edge/uploads/u_9", transport.Requests.Single().Url);
@@ -187,8 +217,8 @@ namespace AndX.Tests
                     : FakeResponse.Ok("{\"purpose\":\"RESOURCE_DOWNLOAD\",\"token\":\"tok\",\"entitled\":true}"));
             Configure(transport);
 
-            var scan = await Share.ResolveAsync("tok");
-            var download = await Share.GetDownloadAsync("tok");
+            var scan = await global::AndX.Share.ResolveAsync("tok");
+            var download = await global::AndX.Share.GetDownloadAsync("tok");
 
             Assert.True(scan.Entitled);
             Assert.Equal("https://minio/x", download.Url);

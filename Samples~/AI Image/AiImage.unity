@@ -302,13 +302,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   accessMode: 0
-  endpoint: 
+  endpoint: https://andx.andcrane.com
   prompt: "\u628A\u7B2C 1 \u5F20\u56FE\u4E2D\u4EBA\u7269\u7684\u9762\u90E8\u81EA\u7136\u878D\u5408\u5230\u7B2C 2 \u5F20\u6A21\u677F\u753B\u9762\u91CC\uFF0C\u4FDD\u6301\u6A21\u677F\u7684\u6784\u56FE\u3001\u5149\u7EBF\u4E0E\u98CE\u683C\uFF0C\u4EBA\u8138\u6BD4\u4F8B\u4E0E\u89D2\u5EA6\u5339\u914D\uFF0C\u9AD8\u6E05\u5199\u5B9E"
   size: 
   imageCount: 1
-  exhibitId: 
-  faceImagePath: "\u4EBA\u8138.png"
-  templateImagePath: "\u6A21\u677F.png"
+  exhibitId: 2
+  faceImagePath: ""
+  templateImagePath: ""
   referenceMaxEdge: 1280
   referenceJpegQuality: 85
   pollIntervalMs: 700

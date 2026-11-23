@@ -4,10 +4,10 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
-using AndX.Core;
+using Parful.AndX.Core;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     /// <summary>
     /// 契约一致性：C# 常量必须与 andx-sdk-spec（只读 SSOT）完全一致。
@@ -67,11 +67,13 @@ namespace AndX.Tests
             Assert.Contains("uploads: '/api/edge/uploads'", links);
             Assert.Contains("resources: '/api/edge/resources'", links);
             Assert.Contains("enroll: '/api/edge/enroll'", links);
+            Assert.Contains("receiveUploadSessions: '/api/edge/receive-upload-sessions'", links);
 
             Assert.Equal("/api/edge/tickets", AndXContract.Paths.EdgeTickets);
             Assert.Equal("/api/edge/uploads", AndXContract.Paths.EdgeUploads);
             Assert.Equal("/api/edge/resources", AndXContract.Paths.EdgeResources);
             Assert.Equal("/api/edge/enroll", AndXContract.Paths.EdgeEnroll);
+            Assert.Equal("/api/edge/receive-upload-sessions", AndXContract.Paths.ReceiveUploadSessions);
         }
 
         [Fact]

@@ -3,11 +3,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
+using Parful.AndX;
+using Parful.AndX.Core;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     /// <summary>
     /// 节点身份（solution §16.2 / §16.3，implementation §13.6）：签名规范、请求注入、
@@ -26,7 +26,7 @@ namespace AndX.Tests
 
         public NodeIdentityTests()
         {
-            Config.Reset();
+            global::AndX.Config.Reset();
         }
 
         private static NodeCredential Credential(string nodeId = "DEV-1")
@@ -36,7 +36,7 @@ namespace AndX.Tests
 
         private static void Configure(FakeTransport transport, NodeCredential credential, string exhibitId = null)
         {
-            Config.Init(
+            global::AndX.Config.Init(
                 new AndXOptions
                 {
                     Endpoint = "https://api.example.com",
@@ -126,7 +126,7 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => FakeResponse.Ok("{\"available\":true,\"reason\":null,\"capabilities\":[]}"));
             Configure(transport, Credential());
 
-            await AI.GetCapabilitiesAsync();
+            await global::AndX.AI.GetCapabilitiesAsync();
 
             var request = transport.Requests.Single();
             Assert.False(request.HasEdgeKey); // 节点身份优先，不再下发共享密钥
@@ -150,7 +150,7 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => FakeResponse.Ok("{\"available\":true,\"reason\":null,\"capabilities\":[]}"));
             Configure(transport, Credential());
 
-            await AI.GetCapabilitiesAsync();
+            await global::AndX.AI.GetCapabilitiesAsync();
 
             var request = transport.Requests.Single();
             // 流式端点服务端不缓冲 body：摘要头必须下发，且等于 canonical 里用的那个哈希
@@ -187,7 +187,7 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => FakeResponse.Ok("{}"));
             Configure(transport, Credential());
 
-            await Share.ResolveAsync("tok123");
+            await global::AndX.Share.ResolveAsync("tok123");
 
             var request = transport.Requests.Single();
             Assert.Equal("https://api.example.com/api/scan/tok123", request.Url);
@@ -201,11 +201,11 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => i < 2
                 ? FakeResponse.Error(500, "INTERNAL_ERROR", "boom")
                 : FakeResponse.Ok("{\"available\":true,\"reason\":null,\"capabilities\":[]}"));
-            Config.Init(
+            global::AndX.Config.Init(
                 new AndXOptions { Endpoint = "https://api.example.com", NodeCredential = Credential(), MaxRetries = 2 },
                 transport);
 
-            await AI.GetCapabilitiesAsync();
+            await global::AndX.AI.GetCapabilitiesAsync();
 
             Assert.Equal(3, transport.Calls);
             var nonces = transport.Requests.Select(r => r.Headers[AndXContract.Headers.DeviceNonce]).ToList();
@@ -222,7 +222,7 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => FakeResponse.Ok(
                 "{\"nodeId\":\"DEV-1\",\"role\":\"exhibit\",\"exhibitId\":\"10\",\"secret\":\"" + Secret + "\"}"));
 
-            var credential = await Node.EnrollAsync(
+            var credential = await global::AndX.Node.EnrollAsync(
                 "https://api.example.com", "enroll-token-1", "DEV-1", name: "1 号机", store: store, transport: transport);
 
             Assert.Equal("DEV-1", credential.NodeId);
@@ -249,10 +249,56 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => FakeResponse.Ok("{}"));
 
             await Assert.ThrowsAsync<AndXException>(() =>
-                Node.EnrollAsync("https://api.example.com", "", "DEV-1", transport: transport));
+                global::AndX.Node.EnrollAsync("https://api.example.com", "", "DEV-1", transport: transport));
             await Assert.ThrowsAsync<AndXException>(() =>
-                Node.EnrollAsync("", "token", "DEV-1", transport: transport));
+                global::AndX.Node.EnrollAsync("", "token", "DEV-1", transport: transport));
             Assert.Equal(0, transport.Calls);
+        }
+
+        // ===== 节点心跳 / 状态上报 =====
+
+        [Fact]
+        public async Task Heartbeat_maps_pending_start_command()
+        {
+            var transport = new FakeTransport((req, i) => FakeResponse.Ok(
+                @"{""serverTime"":""2026-01-01T00:00:01Z"",""state"":""IDLE"",""command"":{"
+                + @"""action"":""start"",""orderNo"":""A001"",""commandId"":""exe_1"","
+                + @"""sessionId"":""s1"",""amount"":1,""at"":""2026-01-01T00:00:00Z""}}"));
+            Configure(transport, Credential());
+
+            var heartbeat = await global::AndX.Node.HeartbeatAsync("6");
+
+            Assert.Equal("IDLE", heartbeat.State);
+            Assert.NotNull(heartbeat.Command);
+            Assert.Equal("start", heartbeat.Command.Action);
+            Assert.Equal("A001", heartbeat.Command.OrderNo);
+            var request = transport.Requests.Single();
+            Assert.Equal("POST", request.Method);
+            Assert.Equal("https://api.example.com/api/devices/heartbeat?exhibitId=6", request.Url);
+            Assert.True(request.Headers.ContainsKey(AndXContract.Headers.DeviceSignature));
+        }
+
+        [Fact]
+        public async Task ReportState_sends_order_command_and_hub_exhibit()
+        {
+            var transport = new FakeTransport((req, i) => FakeResponse.Ok(
+                @"{""nodeId"":""DEV-1"",""exhibitId"":""6"",""state"":""STARTING"","
+                + @"""keyScope"":""project"",""enabled"":true}"));
+            Configure(transport, Credential());
+
+            var state = await global::AndX.Node.ReportStateAsync(
+                "starting", "A001", "exe_1", "6");
+
+            Assert.Equal("STARTING", state.State);
+            Assert.Equal("6", state.ExhibitId);
+            var request = transport.Requests.Single();
+            Assert.Equal("POST", request.Method);
+            Assert.Equal("https://api.example.com/api/devices/DEV-1/state", request.Url);
+            Assert.Contains(@"""state"":""STARTING""", request.Body);
+            Assert.Contains(@"""orderNo"":""A001""", request.Body);
+            Assert.Contains(@"""commandId"":""exe_1""", request.Body);
+            Assert.Contains(@"""exhibitId"":""6""", request.Body);
+            Assert.True(request.Headers.ContainsKey(AndXContract.Headers.DeviceSignature));
         }
 
         // ===== 凭据落盘 =====
@@ -319,7 +365,7 @@ namespace AndX.Tests
                 FakeResponse.Ok("{\"token\":\"t\",\"purpose\":\"EXHIBIT_PAY\",\"amount\":100}"));
             Configure(transport, Credential()); // 不传 ExhibitId：由服务端按节点绑定裁决
 
-            var ticket = await Pay.CreateTicketAsync(new PayTicketOptions());
+            var ticket = await global::AndX.Pay.CreateTicketAsync(new PayTicketOptions());
 
             Assert.Equal("t", ticket.Token);
             var request = transport.Requests.Single();

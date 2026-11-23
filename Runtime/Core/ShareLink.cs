@@ -1,6 +1,6 @@
 using System.Text.RegularExpressions;
 
-namespace AndX.Core
+namespace Parful.AndX.Core
 {
     /// <summary>
     /// 普通链接二维码规则（镜像 <c>andx-sdk-spec/src/links.ts</c>）。

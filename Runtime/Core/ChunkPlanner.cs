@@ -1,6 +1,6 @@
 using System;
 
-namespace AndX.Core
+namespace Parful.AndX.Core
 {
     /// <summary>分片上传的偏移与分片计算（纯函数，供 core 与测试复用）。</summary>
     public static class ChunkPlanner

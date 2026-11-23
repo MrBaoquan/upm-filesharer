@@ -3,10 +3,10 @@
 > 面向接入开发者。`com.parful.andx` 把本地图片/视频上传到 AndX 展项能力平台并生成二维码；
 > 用户扫码即可预览、下载，付费资源按服务端定价走扫码支付；AI 能力域可生成图片并直接复用同一条分发链路。
 >
-> - 包 ID：`com.parful.andx` ｜ 程序集：`AndX.Runtime` ｜ 命名空间：`AndX` / `AndX.Core` / `AndX.Unity`
+> - 包版本：`2.4.1` ｜ 包 ID：`com.parful.andx` ｜ 程序集：`AndX.Runtime` ｜ 命名空间：`Parful.AndX` / `Parful.AndX.Core` / `Parful.AndX.Unity`
 > - 最低 Unity：`2020.3` ｜ 支持平台：Windows / Android / WebGL
 > - 依赖：`com.unity.nuget.newtonsoft-json`（包已声明，自动拉取）
-> - 契约版本：`1.1`（见文末「契约与兼容」）
+> - 契约版本：AndX AIP `v1.0` / Fulfillment `andx-fulfillment/1.0`（见文末「契约与兼容」）
 
 ## 目录
 
@@ -25,6 +25,7 @@
 - [13. API 速查](#13-api-速查)
 - [14. 契约与兼容](#14-契约与兼容)
 - [15. 直连后端（节点身份）](#15-直连后端节点身份)
+- [16. AIP 展项运行时对接（求签机 / Unity）](#16-aip-展项运行时对接求签机--unity)
 
 ## 1. 设计原则
 
@@ -32,7 +33,7 @@
 2. **参数最小化**：能省的参数都省。展项可用全局默认 `AndXOptions.ExhibitId`，上传/付费/AI 的调用处可覆盖。
 3. **定价不由端侧决定**：端侧类型没有价格字段，价格一律由服务端/管理后台配置并回传。
 4. **稳定错误码**：所有失败统一抛 `AndXException`，读 `Code`（稳定码），不依赖 HTTP 状态码做业务判断。
-5. **能力域静态入口**：`AndX.Config` 一次配置，业务方法挂在 `AndX.Share.*` / `AndX.Pay.*` / `AndX.AI.*`，不引入实例门面。
+5. **统一静态门面**：`AndX` 是全局静态入口，`AndX.Config` / `AndX.Share` / `AndX.Pay` / `AndX.AI` 是对外服务实例；业务调用形式保持 `AndX.Share.*`。
 
 ```text
 直连（默认）：[Unity 插件（持本机节点凭据 HMAC）] --HTTPS--> [AndX 服务端]
@@ -56,11 +57,15 @@ Package Manager → 选中 **AndX** → **Samples** → **Import**，导入后�
 | 示例 | 覆盖能力 | 形态 |
 |------|----------|------|
 | **Share And QR** | `Config.InitAuto()` → `Share.UploadAsync` → `LoadQrTextureAsync`（并演示 `Node.SelfAsync` 节点自省） | 场景 `ShareAndQr` |
-| **Scan And Download** | `Share.ResolveAsync`（预览 / 定价 / 是否已购）、`Share.GetDownloadAsync`（下载授权） | 场景 `ScanAndDownload` |
+| **Scan And Download** | `Share.ResolveAsync`、`Share.GetDownloadAsync`；Game 视图内置免费/付费图片、视频四类线上专项测试 | 场景 `ScanAndDownload` |
 | **AI Image** | `AI.GetCapabilitiesAsync` → `AI.GenerateImageAsync` → **结果图显示（多图切换 / 落盘）** + `Share.IssueResourceTicketAsync` 出码 | 场景 `AiImage` |
-| **Pay Ticket** | `Pay.CreateTicketAsync`、`Pay.QueryOrderAsync` | 场景 `PayTicket` |
+| **Pay Ticket** | `Pay.CreateTicketAsync`、`Pay.QueryOrderAsync`；默认连接线上专项测试付费互动展项 | 场景 `PayTicket` |
+| **AndX UNIHper Integration** | `UConfig` 自动配置、UniRx 门面、分享/下载/付费/AI；完整演示「签付费码 → 扫码支付 → 心跳取 `start` → `STARTING/PLAYING` → 3 秒后 `IDLE` 复位」与按钮选中态 | 场景 `AndXUNIHperDemo` |
+| **AndX AIP Host** | 低层 AIP 宿主、IOToolkit 可选适配、命令完成回调与主线程约束；生产展项仍应使用 `ExhibitRuntime` | 脚本 `AndXAipHostExample` |
 
+- **AndX UNIHper Integration** 额外覆盖“扫码收图”：插件生成普通 HTTPS 二维码，微信按普通链接规则进入小程序上传页，普通浏览器打开同一 URL 的 H5 兜底页；上传完成后插件自动下载并显示图片。
 - 每个示例都是「场景 + 脚本」：导入后打开场景 → 填好接入方式（见下）→ **Play 即出结果**。
+- **线上专项测试**：`Scan And Download` 的 Game 视图左上角提供「免费图片 / 付费图片 / 免费视频 / 付费视频」四个切换按钮；付费下载可临时通过环境变量 `ANDX_E2E_USER_TOKEN` 注入小程序登录态。`Pay Ticket` 默认签发票价 1 分的线上付费互动测试码。节点密钥只从本机凭据文件读取，不写入场景或仓库。
 - 组件参数都带了可用默认值（`endpoint` / `exhibitId` / `token` / `q` 留空即走 Edge / 服务端默认），并默认开启 `autoRunOnStart`，Play 后自动跑一遍主流程：
   - `Share And QR`：直连模式先打印一次节点自省（我是谁、代表哪个展项），再上传场景里已挂好的 `example.jpg` → 出码到 `RawImage`。
   - `Scan And Download`：没配 token 时**自举**——上传一张运行时生成的示例图换来真实票据，再走「解析 → 预览 → 下载授权」，完整跑通一码双端链路。
@@ -77,8 +82,8 @@ Package Manager → 选中 **AndX** → **Samples** → **Import**，导入后�
 
 ```csharp
 using System;
-using AndX;
-using AndX.Unity;
+using Parful.AndX;
+using Parful.AndX.Unity;
 using UnityEngine;
 
 public class AndXQuickStart : MonoBehaviour
@@ -103,6 +108,10 @@ public class AndXQuickStart : MonoBehaviour
 }
 ```
 
+
+> AndX 2.0 起实现类型位于 `Parful.AndX`，对外业务入口仍是全局静态类 `AndX`；
+> 新工程请使用 `using Parful.AndX;`，不要再引用旧命名空间 `AndX`。
+
 > `LoadQrTextureAsync()` 是 `AndX.Unity` 提供的扩展方法，依赖 `UnityWebRequest`，**必须在主线程调用**（见[平台与线程](#10-平台与线程)）。
 
 ## 4. 配置 Config
@@ -119,6 +128,24 @@ AndX.Config.ActiveMode;                          // 生效的接入方式（Dire
 AndX.Config.ActiveNodeId;                        // 生效的节点身份（直连模式；经 Edge 为 null）
 AndX.Config.Describe();                          // 一行接入摘要（不含密钥），日志与排障直接打印
 AndX.Config.Reset();                             // 清空（测试与场景切换）
+```
+
+### UNIHper 自动配置
+
+UNIHper 工程无需在业务代码里调用 `AndX.Config.Init*`。`AndXUNIHperSettings : UConfig`
+随框架启动加载 `AndX.xml`，并在 `OnLoaded()` 中自动建立全局配置；服务域名、`AccessMode`
+与超时都由配置文件决定。外部修改后可调用 `AndXUNIHperBridge.ReloadAndApply()` 立即重载。
+
+```csharp
+using Parful.AndX;
+using UniRx;
+
+// 自动配置完成后直接调用；Dispose 取消底层请求，回调回到主线程
+AndX.Share.UploadAsObservable(
+        new TexturePayload(screenshot),
+        new UploadOptions { Title = "展项截图" })
+    .Subscribe(result => status.text = result.ShareUrl, error => Debug.LogError(error))
+    .AddTo(this);
 ```
 
 ### AndXOptions
@@ -562,8 +589,8 @@ Debug.Log(AndX.Config.Describe());     // mode=Direct | identity=节点身份 no
 需要显式控制（自定义名称、指定凭据路径、注入平台保护器）时用长写法：
 
 ```csharp
-using AndX;
-using AndX.Unity;
+using Parful.AndX;
+using Parful.AndX.Unity;
 
 const string endpoint = "https://api.example.com";   // 后端基址（不是本机 Edge 时必填）
 
@@ -684,3 +711,256 @@ Edge 模式由 Edge 重签；`EdgeKey` 共享密钥是**过渡期旧轨**，只�
 1. **模式不再写死在示例代码里**：改 Inspector 下拉框即可，不用改码重编；
 2. **凭据样板收进 SDK**：`Config.InitAuto()` 自动加载本机凭据、按需读环境变量，首启注册用 `InitAutoAsync()` 一步完成（不用手抄 `EnrollAsync` + 落盘 + `Init` 三步）；
 3. **直连也有自省入口**：`AndX.Node.SelfAsync()` / `RecentAuditAsync()`，与 Edge 诊断页对称——现场可直接回答「我是谁、这次调用算在哪个展项头上、结果码是什么」。
+
+## 16. AIP 展项运行时对接（求签机 / Unity）
+
+> 本章是 Unity 展项接入 AIP v1 的统一说明。求签机和新展项都以本章为准；不要接入旧 WebSocket、旧 `/api/sys`、旧 token 或旧状态码。
+
+### 16.1 接入边界
+
+```text
+AndX 服务端
+  system AIP session → physical-output lease → command.invoke(start/stop)
+        │
+        ▼
+Unity ExhibitRuntime
+  命令去重 → Adapter.StartAsync/StopAsync → state.publish
+        │
+        ▼
+实体展项（机械、灯效、音视频、出签机构等）
+```
+
+- AIP 是唯一业务协议；MQTT/HTTP heartbeat 只负责投递兜底，不改变命令或状态语义。
+- Unity 只接受 `start`、`stop`、`safety.stop`；不得通过本门面操作串口、Modbus、`SetDO`、`PluginChannel` 或厂商私有 IO。
+- `command.result.ok=true` 只表示 Adapter 已接受命令，不表示实体动作已经完成。
+- 最终完成以设备回到 `IDLE` 为准。
+
+### 16.2 前置条件
+
+1. Unity `2020.3+`，安装 `com.parful.andx`（推荐 UPM Git URL、tarball 或 embedded 到 `Packages/`）。
+2. 在后台完成节点注册，并绑定到目标展项；节点 `DeviceId`、密钥和 `ExhibitId` 必须匹配。
+3. 服务端部署已包含 AIP module、`aip_command` 和 `aip_exhibit_state` 表，并启用 AIP 入口。
+4. 现场网络允许节点连接 AIP WebSocket（`wss://.../api/aip`）；不允许时走同一 commandId 的 MQTT/心跳兜底。
+5. 生产密钥只从安全存储、环境注入或部署系统读取；不得写入场景、代码、日志或 Git。
+6. AIP 运行时当前面向 Editor、Windows Standalone 和 Android；WebGL 不具备可用的原生 WebSocket/安全凭据存储，不走 AIP 直连路径。
+
+### 16.3 Adapter 实现
+
+> 求签机接入应使用本章的 `ExhibitRuntime` 高层门面。`AndXAipBehaviour` 与 `AndX AIP Host` 示例仅用于低层协议调试，不负责完整状态机、命令去重和崩溃恢复，不作为生产接入入口。
+
+Adapter 是展项业务与实体动作之间的唯一适配层：
+
+```csharp
+using System.Threading;
+using System.Threading.Tasks;
+using Parful.AndX.Aip;
+
+public sealed class QiuQianAdapter : IExhibitRuntimeAdapter
+{
+    private readonly QiuQianHardware hardware;
+
+    public QiuQianAdapter(QiuQianHardware hardware)
+    {
+        this.hardware = hardware;
+    }
+
+    public async Task StartAsync(
+        ExhibitRuntimeCommand command,
+        CancellationToken cancellationToken)
+    {
+        // 这里只触发平台允许的实体动作。
+        // 必须在真正可交互后调用 NotifyPlayingAsync，而不是在这里假定 PLAYING。
+        await hardware.StartInteractionAsync(command.OrderNo, cancellationToken);
+    }
+
+    public Task StopAsync(
+        ExhibitRuntimeCommand command,
+        CancellationToken cancellationToken)
+    {
+        // Stop/SafetyStop 必须幂等：重复调用不能造成二次出签或二次机械动作。
+        return hardware.SafeStopAsync(command.OrderNo, cancellationToken);
+    }
+}
+```
+
+业务扩展能力通过 `IExhibitCapabilityHandler` 注册，不能伪装成 lifecycle 命令：
+
+```csharp
+public sealed class QiuQianDrawHandler : IExhibitCapabilityHandler
+{
+    public string Capability => "qiuqian.draw";
+
+    public Task<AipCommandResult> ExecuteAsync(
+        ExhibitRuntimeCommand command,
+        CancellationToken cancellationToken)
+    {
+        return hardware.DrawAsync(command.OrderNo, cancellationToken);
+    }
+}
+```
+
+在 `ExhibitRuntimeOptions.CapabilityHandlers` 中注册 Handler。服务端必须先按 Capability Manifest 授权，并在已有履约 session/lease 下下发；Handler 只在 `PLAYING` 状态执行，`safety.stop` 会取消进行中的能力动作。
+
+Adapter 约束：
+
+- `StartAsync` 尊重取消；启动失败直接抛异常；
+- `StopAsync` 必须可重复调用，并且优先保证机械安全；
+- Adapter 不应自行生成订单、金额、支付状态或 AIP session；
+- Adapter 不应吞掉异常后返回成功；
+- 真实设备完成检测、灯光、音视频、出签等动作均在 Adapter/展项业务内完成。
+
+### 16.4 初始化运行时
+
+```csharp
+using System;
+using Parful.AndX.Aip;
+using Parful.AndX.Unity;
+using UnityEngine;
+
+public sealed class QiuQianRuntimeBootstrap : MonoBehaviour
+{
+    private AipClient aip;
+    private AipConnectionSupervisor connection;
+    private Action<ExhibitRuntimeSnapshot> stateHandler;
+
+    private async void Start()
+    {
+        // 生产环境由部署系统/凭据存储注入，禁止硬编码。
+        var credential = NodeCredentialStorage.Create().Load();
+        if (credential == null)
+        {
+            Debug.LogError("缺少节点凭据，请先完成注册");
+            return;
+        }
+
+        AndX.ExhibitRuntime.Configure(new ExhibitRuntimeOptions
+        {
+            ExhibitId = "你的展项ID",
+            Adapter = new QiuQianAdapter(GetComponent<QiuQianHardware>()),
+            CommandStore = UnityExhibitCommandStore.Create("你的展项ID"),
+            CapabilityHandlers = new IExhibitCapabilityHandler[]
+            {
+                new QiuQianDrawCapabilityHandler()
+            },
+            StartConfirmationTimeout = TimeSpan.FromSeconds(120)
+        });
+
+        aip = new AipClient(new AipClientOptions
+        {
+            Endpoint = "wss://andx.andcrane.com/api/aip",
+            DeviceId = credential.NodeId,
+            Secret = credential.Secret,
+            ExhibitId = "你的展项ID",
+            RequestTimeoutMs = 30000
+        });
+
+        AndX.ExhibitRuntime.BindAipClient(aip);
+        connection = new AipConnectionSupervisor(aip);
+        connection.ReconnectFailed += error => Debug.LogWarning($"AIP reconnect: {error.Message}");
+        connection.Start();
+        stateHandler = snapshot =>
+            Debug.Log($"AIP state={snapshot.State} revision={snapshot.Revision}");
+        AndX.ExhibitRuntime.StateChanged += stateHandler;
+
+        await aip.ConnectAsync();
+    }
+
+    private void OnDestroy()
+    {
+        if (stateHandler != null)
+            AndX.ExhibitRuntime.StateChanged -= stateHandler;
+        connection?.Dispose();
+        aip?.Dispose();
+    }
+}
+```
+
+> `AipConnectionSupervisor` 负责 1–30 秒指数退避重连，并在连接恢复后重置退避。`BindAipClient` 会自动把运行时状态通过 AIP `state.publish` 上报；若已有自定义状态发布器，可在 `ExhibitRuntimeOptions.StatePublisher` 显式传入。
+
+### 16.5 业务生命周期
+
+| 时机 | 调用 | 结果 |
+|---|---|---|
+| 收到 AIP `start` | 运行时自动执行 Adapter.StartAsync | `IDLE → STARTING` |
+| 实体和互动界面真正就绪 | `AndX.ExhibitRuntime.NotifyPlayingAsync(orderNo, commandId)` | `STARTING → PLAYING` |
+| 互动自然完成 | `AndX.ExhibitRuntime.NotifyCompletedAsync(orderNo, commandId)` | `PLAYING/STARTING → IDLE` |
+| 退款、管理员停止、`safety.stop` | 运行时自动执行 Adapter.StopAsync | 安全停止后回到 `IDLE`，失败进入 `ERROR` |
+| 启动 120 秒未确认 PLAYING | 运行时自动安全停止 | 进入 `ERROR`，并上报超时错误 |
+| 网络/设备不可信 | `AndX.ExhibitRuntime.MarkOfflineAsync(code, message)` | 进入 `OFFLINE`，禁止新支付 |
+
+业务代码示例：
+
+```csharp
+public async Task OnPhysicalInteractionReady()
+{
+    await AndX.ExhibitRuntime.NotifyPlayingAsync();
+}
+
+public async Task OnPhysicalInteractionCompleted()
+{
+    await AndX.ExhibitRuntime.NotifyCompletedAsync();
+}
+```
+
+正常情况下状态必须满足：
+
+```text
+IDLE → STARTING → PLAYING → IDLE
+```
+
+异常路径：
+
+```text
+STARTING → ERROR
+PLAYING → ERROR
+任意状态 → OFFLINE
+ERROR/OFFLINE 只能在安全停止或人工恢复后回到 IDLE
+```
+
+### 16.6 命令幂等与崩溃恢复
+
+运行时会在触发实体动作前写入 pending 命令记录：
+
+- 同一个 `commandId` 或 `idempotencyKey` 不会执行第二次实体动作；
+- 默认保留至少 7 天或最近 100 条；
+- 如果进程在实体动作之后、完成记录之前崩溃，重启后会返回 `AIP_COMMAND_PENDING_REVIEW`，必须人工核验现场，不得自动重放；
+- 同一幂等键绑定不同 action 会返回 `EXHIBIT_COMMAND_CONFLICT`；
+- `safety.stop` 会优先取消进行中的 start，优先执行安全停止。
+
+### 16.7 状态与错误处理
+
+稳定错误码（节选）：
+
+| 错误码 | 含义 | 处理 |
+|---|---|---|
+| `EXHIBIT_BUSY` | 当前非 IDLE，不能再次 start | 检查设备状态或人工释放 |
+| `EXHIBIT_START_FAILED` | Adapter 启动异常 | 保留现场日志，人工排查后重试 |
+| `EXHIBIT_START_TIMEOUT` | 120 秒内没有确认 PLAYING | 已尝试安全停止，检查机械/完成检测 |
+| `EXHIBIT_STOP_FAILED` | Adapter 安全停止失败 | 立即转人工，标记设备异常 |
+| `AIP_COMMAND_PENDING_REVIEW` | 上次命令可能已产生实体副作用 | 禁止自动重放，人工核验 |
+| `EXHIBIT_COMMAND_CONFLICT` | 幂等键 action 冲突 | 检查调用方 commandId/action |
+| `AIP_DEVICE_OFFLINE` | AIP 节点不在线 | 等待同一 commandId 的 MQTT/心跳兜底 |
+
+错误必须携带可读信息进入后台审计；Adapter 不应把设备异常伪装成成功。
+
+### 16.8 生产接入检查清单
+
+- [ ] 节点已注册、启用、绑定到正确展项，密钥未进入仓库/日志；
+- [ ] `AipClient.Endpoint`、`DeviceId`、`Secret`、`ExhibitId` 正确；
+- [ ] `UnityExhibitCommandStore.Create(exhibitId)` 指向持久化目录；
+- [ ] 实体 Adapter 的 Start/Stop 幂等、可取消、可安全停止；
+- [ ] 实际可交互后才调用 `NotifyPlayingAsync`；
+- [ ] 完成/退款/管理员停止都能收敛 `IDLE`；
+- [ ] 断网、AIP 不在线、重复 commandId、崩溃重启均已演练；
+- [ ] 后台能看到 `aip_command`、`aip_exhibit_state` 和状态 revision；
+- [ ] 真机完成一次支付、实体出签、`PLAYING`、`IDLE` 和 `safety.stop` 验收。
+
+### 16.9 验证命令
+
+```powershell
+npm --prefix andx-sdk-spec run validate:exhibit-interaction
+dotnet test unity/com.parful.andx/Tests~/AndXCore.Tests/AndXCore.Tests.csproj -c Release
+cd server; npm run typecheck; npm run test -- --no-file-parallelism
+```
+
+AIP schema、Fulfillment Profile、Unity Core 测试和真实设备验收必须分别留证；mock/E2E 不能替代 A11 真机结果。

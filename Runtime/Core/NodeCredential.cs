@@ -1,6 +1,6 @@
 using System;
 
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>
     /// 节点身份凭据（solution §16.2）：节点 ID + 节点密钥（HMAC）。

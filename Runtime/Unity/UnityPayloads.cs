@@ -3,7 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
-namespace AndX.Unity
+namespace Parful.AndX.Unity
 {
     /// <summary>内存字节载荷（WebGL 唯一可用形态）。</summary>
     public sealed class ByteArrayPayload : IAndXPayload

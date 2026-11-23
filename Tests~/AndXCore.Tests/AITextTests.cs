@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using AndX;
-using AndX.Core;
+using Parful.AndX;
+using Parful.AndX.Core;
 using Xunit;
 
-namespace AndX.Tests
+namespace Parful.AndX.Tests
 {
     /// <summary>
     /// 单轮文字能力（藏头诗 / 解签 / 祝福）的契约测试：路径 / 鉴权 / 请求体形状 / 结果映射 / 错误透出。
@@ -16,12 +16,12 @@ namespace AndX.Tests
     {
         public AITextTests()
         {
-            Config.Reset();
+            global::AndX.Config.Reset();
         }
 
         private static void Configure(FakeTransport transport, string exhibitId = null)
         {
-            Config.Init(
+            global::AndX.Config.Init(
                 new AndXOptions { Endpoint = "https://edge.example.com", EdgeKey = "edge-key", ExhibitId = exhibitId },
                 transport);
         }
@@ -38,7 +38,7 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => FakeResponse.Ok(OkBody));
             Configure(transport);
 
-            var result = await AI.GenerateTextAsync(
+            var result = await global::AndX.AI.GenerateTextAsync(
                 "acrostic",
                 new Dictionary<string, object> { ["head"] = "春风得意", ["topic"] = "江南" });
 
@@ -69,7 +69,7 @@ namespace AndX.Tests
             var transport = new FakeTransport((req, i) => FakeResponse.Ok(body));
             Configure(transport);
 
-            var result = await AI.GenerateTextAsync(
+            var result = await global::AndX.AI.GenerateTextAsync(
                 new AITextRequest
                 {
                     Scenario = AndXContract.AITextScenarios.Fortune,
@@ -94,7 +94,7 @@ namespace AndX.Tests
             Configure(transport);
 
             var error = await Assert.ThrowsAsync<AndXException>(
-                () => AI.GenerateTextAsync(new AITextRequest()));
+                () => global::AndX.AI.GenerateTextAsync(new AITextRequest()));
             Assert.Equal(AndXContract.SdkErrorCodes.Configuration, error.Code);
             Assert.Empty(transport.Requests); // 本地就拦下，不发请求
         }
@@ -108,7 +108,7 @@ namespace AndX.Tests
             Configure(transport);
 
             var error = await Assert.ThrowsAsync<AndXException>(
-                () => AI.GenerateTextAsync(AndXContract.AITextScenarios.Fortune, new Dictionary<string, object> { ["wish"] = "问学业" }));
+                () => global::AndX.AI.GenerateTextAsync(AndXContract.AITextScenarios.Fortune, new Dictionary<string, object> { ["wish"] = "问学业" }));
 
             Assert.Equal("AI_CORPUS_MISSING", error.Code);
             Assert.Contains("ai.corpus.fortune", error.Message);

@@ -1,9 +1,9 @@
 using System.Threading;
 using UnityEngine;
 
-namespace AndX.Unity
+namespace Parful.AndX.Unity
 {
-    /// <summary>向 core 注册 Unity 传输实现，使 <c>AndX.Config.Init(options)</c> 可直接使用。</summary>
+    /// <summary>向 core 注册 Unity 传输实现，使 <c>global::AndX.Config.Init(options)</c> 可直接使用。</summary>
     internal static class AndXUnityBootstrap
     {
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -14,7 +14,7 @@ namespace AndX.Unity
             UnityWebRequestTransport.InstallMainThread(SynchronizationContext.Current);
             AndXTransportProvider.Factory = () => new UnityWebRequestTransport();
 
-            // 登记本机节点凭据存储：使 core 的 AndX.Config.InitAuto（直连模式）无需引用 UnityEngine
+            // 登记本机节点凭据存储：使 core 的 global::AndX.Config.InitAuto（直连模式）无需引用 UnityEngine
             // 即可找到 persistentDataPath/andx/node-credential.json（保护器见 usage.md §15.2）。
             AndXCredentialProvider.StoreFactory = () => NodeCredentialStorage.Create();
         }

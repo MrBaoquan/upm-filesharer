@@ -2,7 +2,7 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Networking;
 
-namespace AndX.Unity
+namespace Parful.AndX.Unity
 {
     /// <summary>二维码纹理加载（服务端出图，端侧只下载显示，不内置 QR 编码库）。</summary>
     public static class QrTextureLoader

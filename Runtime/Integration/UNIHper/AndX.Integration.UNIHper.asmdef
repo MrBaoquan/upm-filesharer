@@ -1,0 +1,27 @@
+{
+  "name": "AndX.Integration.UNIHper",
+  "rootNamespace": "Parful.AndX.Integration.UNIHper",
+  "references": [
+    "AndX.Runtime",
+    "UNIHper",
+    "DNHper",
+    "UniRx"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [
+    "ANDX_UNIHper_PRESENT"
+  ],
+  "versionDefines": [
+    {
+      "name": "com.parful.unihper",
+      "expression": "1.25.1108",
+      "define": "ANDX_UNIHper_PRESENT"
+    }
+  ],
+  "noEngineReferences": false
+}

@@ -1,6 +1,6 @@
 using System;
 
-namespace AndX
+namespace Parful.AndX
 {
     /// <summary>
     /// 本机节点凭据存储的**平台注入点**（core 不引用任何平台 API，与 <see cref="AndXTransportProvider"/> 同构）。

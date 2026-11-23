@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace AndX.Core
+namespace Parful.AndX.Core
 {
     /// <summary>
     /// 传输抽象：core 只依赖此接口，平台适配（UnityWebRequest / 后续 native）在各自实现中完成。

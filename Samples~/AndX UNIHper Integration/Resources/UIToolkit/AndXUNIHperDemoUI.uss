@@ -1,0 +1,386 @@
+.page {
+    flex-grow: 1;
+    padding: 28px 36px 32px 36px;
+    background-color: rgb(242, 246, 252);
+}
+
+.header {
+    min-height: 76px;
+    padding: 14px 20px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    background-color: rgb(255, 255, 255);
+    border-width: 1px;
+    border-color: rgb(219, 230, 244);
+    border-radius: 20px;
+}
+
+.brand {
+    flex-direction: row;
+    align-items: center;
+}
+
+.brand-mark {
+    width: 46px;
+    height: 46px;
+    margin-right: 14px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(11, 99, 206);
+    border-radius: 14px;
+}
+
+.brand-mark-label {
+    font-size: 25px;
+    color: rgb(255, 255, 255);
+    -unity-font-style: bold;
+}
+
+.brand-copy {
+    justify-content: center;
+}
+
+.title {
+    font-size: 27px;
+    color: rgb(20, 32, 51);
+    -unity-font-style: bold;
+}
+
+.subtitle {
+    margin-top: 3px;
+    font-size: 14px;
+    color: rgb(100, 116, 139);
+}
+
+.connection-pill {
+    min-width: 112px;
+    padding: 8px 13px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(236, 253, 245);
+    border-radius: 999px;
+}
+
+.connection-dot {
+    margin-right: 7px;
+    font-size: 10px;
+    color: rgb(5, 150, 105);
+}
+
+.connection-text {
+    font-size: 13px;
+    color: rgb(4, 120, 87);
+    -unity-font-style: bold;
+}
+
+.connection-pill.connection-error {
+    background-color: rgb(254, 242, 242);
+}
+
+.connection-pill.connection-error .connection-dot,
+.connection-pill.connection-error .connection-text {
+    color: rgb(185, 28, 28);
+}
+
+.content {
+    margin-top: 18px;
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+.main-column {
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-right: 18px;
+}
+
+.hero-card,
+.section-card,
+.diagnostics-card,
+.stage-panel {
+    padding: 24px;
+    background-color: rgb(255, 255, 255);
+    border-width: 1px;
+    border-color: rgb(219, 230, 244);
+    border-radius: 20px;
+}
+
+.section-card,
+.diagnostics-card {
+    margin-top: 16px;
+}
+
+.eyebrow {
+    font-size: 12px;
+    color: rgb(11, 99, 206);
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+}
+
+.hero-title {
+    margin-top: 9px;
+    font-size: 30px;
+    color: rgb(20, 32, 51);
+    -unity-font-style: bold;
+    white-space: normal;
+}
+
+.hero-desc {
+    margin-top: 9px;
+    font-size: 15px;
+    color: rgb(100, 116, 139);
+    white-space: normal;
+}
+
+.primary-actions {
+    margin-top: 20px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.hero-button {
+    min-width: 210px;
+    height: 52px;
+    margin-right: 12px;
+    border-radius: 13px;
+    font-size: 17px;
+    -unity-font-style: bold;
+}
+
+.primary-button {
+    background-color: rgb(11, 99, 206);
+    color: rgb(255, 255, 255);
+    border-width: 0;
+}
+
+.primary-button:hover {
+    background-color: rgb(9, 82, 171);
+}
+
+.secondary-button {
+    background-color: rgb(247, 250, 255);
+    color: rgb(30, 64, 175);
+    border-width: 1px;
+    border-color: rgb(205, 220, 240);
+}
+
+.secondary-button:hover {
+    background-color: rgb(235, 244, 255);
+    border-color: rgb(159, 190, 229);
+}
+
+.service-summary {
+    margin-top: 18px;
+    padding: 11px 13px;
+    font-size: 13px;
+    color: rgb(71, 85, 105);
+    background-color: rgb(247, 250, 255);
+    border-radius: 11px;
+    white-space: normal;
+}
+
+.section-title {
+    font-size: 18px;
+    color: rgb(20, 32, 51);
+    -unity-font-style: bold;
+}
+
+.action-grid {
+    margin-top: 12px;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.action-button {
+    min-width: 152px;
+    height: 44px;
+    margin-right: 9px;
+    margin-bottom: 9px;
+    border-radius: 10px;
+    font-size: 14px;
+}
+
+.action-selected {
+    background-color: rgb(11, 99, 206);
+    color: rgb(255, 255, 255);
+    border-color: rgb(11, 99, 206);
+    -unity-font-style: bold;
+}
+
+.action-selected:hover {
+    background-color: rgb(9, 82, 171);
+}
+
+.action-button:disabled,
+.hero-button:disabled {
+    opacity: 0.58;
+}
+
+.action-selected:disabled {
+    opacity: 1;
+}
+
+.diagnostics-card {
+    padding-top: 14px;
+    padding-bottom: 14px;
+}
+
+.diagnostics-toggle {
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    align-self: flex-start;
+    background-color: transparent;
+    border-width: 0;
+    color: rgb(11, 99, 206);
+    font-size: 13px;
+}
+
+.diagnostics-panel {
+    display: none;
+    margin-top: 12px;
+    padding-top: 14px;
+    border-top-width: 1px;
+    border-top-color: rgb(226, 234, 245);
+}
+
+.config-path {
+    font-size: 12px;
+    color: rgb(100, 116, 139);
+    white-space: normal;
+}
+
+.config-raw {
+    margin-top: 7px;
+    font-size: 12px;
+    color: rgb(100, 116, 139);
+    white-space: normal;
+}
+
+.business-code {
+    margin-top: 12px;
+    font-size: 13px;
+    color: rgb(30, 64, 175);
+    white-space: normal;
+}
+
+.field-row {
+    margin-top: 10px;
+    flex-direction: row;
+}
+
+.exhibit-input {
+    flex-grow: 1;
+    margin-right: 12px;
+}
+
+.flow-hint {
+    margin-top: 10px;
+    font-size: 12px;
+    color: rgb(100, 116, 139);
+    white-space: normal;
+}
+
+.reload-button {
+    width: 170px;
+    height: 38px;
+    margin-top: 12px;
+    border-radius: 9px;
+    font-size: 13px;
+}
+
+.diagnostics-title {
+    margin-top: 14px;
+    font-size: 13px;
+    color: rgb(51, 65, 85);
+    -unity-font-style: bold;
+}
+
+.log-scroll {
+    height: 132px;
+    margin-top: 7px;
+    padding: 8px 10px;
+    background-color: rgb(15, 23, 42);
+    border-radius: 10px;
+}
+
+.result-log {
+    font-size: 12px;
+    color: rgb(203, 213, 225);
+    white-space: normal;
+}
+
+.stage-panel {
+    width: 430px;
+    flex-shrink: 0;
+    align-self: flex-start;
+}
+
+.stage-title {
+    font-size: 24px;
+    color: rgb(20, 32, 51);
+    -unity-font-style: bold;
+}
+
+.preview-hint {
+    margin-top: 7px;
+    min-height: 38px;
+    font-size: 14px;
+    color: rgb(100, 116, 139);
+    white-space: normal;
+}
+
+.qr-frame {
+    width: 100%;
+    height: 380px;
+    margin-top: 16px;
+    align-items: center;
+    justify-content: center;
+    background-color: rgb(248, 251, 255);
+    border-width: 1px;
+    border-color: rgb(219, 230, 244);
+    border-radius: 18px;
+}
+
+.qr-image {
+    width: 100%;
+    height: 100%;
+    border-radius: 17px;
+}
+
+.qr-placeholder {
+    position: absolute;
+    font-size: 15px;
+    color: rgb(148, 163, 184);
+}
+
+.status {
+    margin-top: 16px;
+    min-height: 66px;
+    padding: 13px 15px;
+    font-size: 17px;
+    color: rgb(30, 64, 175);
+    background-color: rgb(239, 246, 255);
+    border-radius: 12px;
+    white-space: normal;
+    -unity-font-style: bold;
+}
+
+.status-success {
+    color: rgb(15, 118, 110);
+    background-color: rgb(236, 253, 245);
+}
+
+.status-error {
+    color: rgb(185, 28, 28);
+    background-color: rgb(254, 242, 242);
+}
+
+.stage-footer {
+    margin-top: 12px;
+    font-size: 12px;
+    color: rgb(100, 116, 139);
+    white-space: normal;
+}
